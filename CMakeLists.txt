@@ -28,7 +28,7 @@ endif()
 
 # visuel integre au plugin (aucun fichier externe a l'execution)
 juce_add_binary_data(StrongPickleAssets SOURCES
-  background.jpg toggle_strip.png glow_blue.png Poppins-Medium.ttf)
+  background.jpg toggle_strip.png glow_yellow.png Poppins-Medium.ttf)
 set_target_properties(StrongPickleAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 juce_add_plugin(StrongPickle

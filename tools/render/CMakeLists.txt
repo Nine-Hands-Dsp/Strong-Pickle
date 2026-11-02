@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(${JUCE_DIR} JUCE)
 set(W ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 juce_add_binary_data(StrongPickleAssets SOURCES
-  ${W}/background.jpg ${W}/toggle_strip.png ${W}/glow_blue.png ${W}/Poppins-Medium.ttf)
+  ${W}/background.jpg ${W}/toggle_strip.png ${W}/glow_yellow.png ${W}/Poppins-Medium.ttf)
 juce_add_console_app(PickleRender PRODUCT_NAME "PickleRender")
 target_sources(PickleRender PRIVATE main.cpp ${W}/PluginProcessor.cpp ${W}/PluginEditor.cpp)
 target_include_directories(PickleRender PRIVATE ${W})

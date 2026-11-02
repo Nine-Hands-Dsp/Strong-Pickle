@@ -1,408 +1,260 @@
 """
-Strong Pickle (Studio Wiga) - fond du plugin, design original (aucune photo de la pedale d'origine).
+Strong Pickle (Studio Wiga) - fond du plugin a partir du visuel fourni (design/source/strong_pickle_visuel.png).
 
-Boitier compact facon « Smalls » (pedale simple), peinture vert cornichon metallisee a paillettes,
-relief de « verrues » de cornichon, inscriptions creme, logo Studio Wiga.
-Une seule lumiere pour toute la pedale : en haut a gauche (ombres portees vers le bas a droite).
-
-Sorties (cadre 1520 x 1916 = 2 x 760 x 958, cadrage Echoflex / Doorn) :
-  background.jpg      fond (pedale sans les pieces mobiles : reperes des potards, inverseurs, LED allumee)
-  toggle_strip.png    inverseur a levier du kit Studio Wiga (FreakOut), 3 images carrees : bas, intermediaire, haut
-  glow_blue.png       calque d'eclairage de la facade par la LED bleue (alpha : seule la lumiere ajoutee)
-  Layout.h            reperes en unites 760 x 958
-  tools/layout.json   memes reperes (notice)
+Le visuel est la reference : son eclairage (lumiere en haut a gauche) et son grain sont conserves.
+Le visuel (912 x 1152) a exactement les proportions du cadre 760 x 958 : 1 px du visuel = 0,8333 unite.
+Ce script :
+  1. efface les reperes blancs des potards (ils sont redessines et tournent dans le plugin),
+  2. efface les leviers des deux inverseurs (rendus 3D dans le plugin : bas / intermediaire / haut),
+  3. remplace la LED bleue allumee par une LED jaune eteinte (bague chromee) et retire la lueur bleue
+     de la facade ; calcule le calque d'eclairage jaune de la facade (alpha : seule la lumiere ajoutee),
+  4. vide l'ecran de statut et la barre de presets (textes effaces, cadres et fleches gardes) : le plugin y ecrit,
+  5. met le tout a l'echelle du cadre 1520 x 1916 (= 2 x 760 x 958) et ecrit Layout.h.
 
 Usage : python3 tools/make_background.py
 """
 import os, json, math
 import numpy as np, cv2
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-AS = os.path.join(ROOT, 'assets')
-FONTS = os.path.join(AS, 'fonts')
-PX = 2
-W2, H2 = 760 * PX, 958 * PX
+SRC = os.path.join(ROOT, 'design', 'source', 'strong_pickle_visuel.png')
 
-L = np.array([-0.46, -0.62, 0.64]); L /= np.linalg.norm(L)       # vers la lumiere (haut gauche)
-V = np.array([0.0, 0.0, 1.0])
-HV = (L + V) / np.linalg.norm(L + V)
-rng = np.random.default_rng(41)
+A = cv2.cvtColor(cv2.imread(SRC), cv2.COLOR_BGR2RGB).astype(np.float32)
+H, W = A.shape[:2]
+K = 760.0 / W                              # unites par pixel du visuel
+YY, XX = np.mgrid[0:H, 0:W].astype(np.float32)
+lum = lambda a: a.mean(-1)
+rng = np.random.default_rng(7)
 
-# ------------------------------------------------------------------ reperes (unites 760 x 958)
-PEDAL = (130.0, 22.0, 630.0, 938.0); PR = 30.0                     # boitier, rayon des angles
-KNOB_R = 46.0                                                      # FILTER
-KNOB_RS = {'loudness': 60.0, 'sustain': 60.0, 'filter': KNOB_R}     # v1.0 : gros potards du haut, comme sur la Swollen Pickle
-KNOBS = {'loudness': (258.0, 160.0), 'sustain': (502.0, 160.0), 'filter': (380.0, 350.0)}
-TOGGLES = {'crunch': (240.0, 352.0), 'scoop': (520.0, 352.0)}
-TOG_SCALE = 0.86                                                   # kit FreakOut -> Strong Pickle
-LED = (380.0, 690.0); LED_R = 7.6
-FOOT = (380.0, 800.0); FOOT_FLATS = 104.0                          # largeur entre plats de l'ecrou
-STATUS = (196.0, 448.0, 368.0, 48.0)
-PRESET = (186.0, 502.0, 388.0, 34.0)
-JACK_Y = 480.0                                                     # jacks au milieu de la hauteur du boitier
-GLOW = (LED[0] - 128.0, LED[1] - 112.0, 256.0, 256.0)
+# ------------------------------------------------------------------ reperes mesures sur le visuel (px)
+KNOBS = [(307.0, 194.0, 71.0), (602.0, 192.0, 71.0), (456.0, 424.0, 58.0)]   # loudness, sustain, filter : centre, rayon du moletage
+TOGGLES = [(285.5, 428.5), (626.0, 428.0)]                                   # crunch, scoop : centre de la bague
+TOG_RING = 24.5
+LED = (455.5, 823.0)
+FOOT = (452.0, 956.0); FOOT_R = 54.0
+STATUS_BOX = (234.0, 545.0, 446.0, 57.0)
+PRESET_BOX = (222.0, 612.0, 469.0, 39.0)
 
-U = lambda v: v * PX
-yy, xx = np.mgrid[0:H2, 0:W2].astype(np.float32)
-ux, uy = (xx + 0.5) / PX, (yy + 0.5) / PX
+def bilinear(img, x, y):
+    x = np.clip(x, 0, W - 2); y = np.clip(y, 0, H - 2)
+    x0 = np.floor(x).astype(int); y0 = np.floor(y).astype(int)
+    fx = (x - x0)[..., None]; fy = (y - y0)[..., None]
+    return (img[y0, x0] * (1 - fx) * (1 - fy) + img[y0, x0 + 1] * fx * (1 - fy)
+            + img[y0 + 1, x0] * (1 - fx) * fy + img[y0 + 1, x0 + 1] * fx * fy)
 
-def smooth(e0, e1, x):
-    t = np.clip((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t)
+def ring_fill(cx, cy, mask, rmax):
+    """efface en interpolant, sur chaque cercle centre sur la commande, entre les angles voisins non masques
+    (les reflets d'un chapeau tourne ou d'une bague varient doucement avec l'angle)."""
+    NA = 1440
+    th = np.linspace(-math.pi, math.pi, NA, endpoint=False)
+    ys, xs = np.where(mask)
+    rr = np.hypot(xs - cx, ys - cy); aa = np.arctan2(ys - cy, xs - cx)
+    for r0 in range(0, int(rmax) + 2):
+        sel = (rr >= r0 - 0.5) & (rr < r0 + 0.5)
+        if not sel.any(): continue
+        r_ = max(r0, 0.5)
+        px = cx + r_ * np.cos(th); py = cy + r_ * np.sin(th)
+        prof = bilinear(A, px, py)
+        mpx = np.clip(np.round(px).astype(int), 0, W - 1); mpy = np.clip(np.round(py).astype(int), 0, H - 1)
+        bad = mask[mpy, mpx]
+        if bad.all(): continue
+        good = np.where(~bad)[0]
+        ext = np.concatenate([good - NA, good, good + NA])
+        for c in range(3):
+            prof[:, c] = np.interp(np.arange(NA), ext, np.tile(prof[good, c], 3))
+        idx = ((aa[sel] + math.pi) / (2 * math.pi) * NA).astype(int) % NA
+        A[ys[sel], xs[sel]] = prof[idx]
 
-def rrect_sdf(x, y, x0, y0, x1, y1, r):
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    hx, hy = (x1 - x0) / 2 - r, (y1 - y0) / 2 - r
-    qx, qy = np.abs(x - cx) - hx, np.abs(y - cy) - hy
-    return np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - r
+# ------------------------------------------------------------------ 1. reperes des potards
+for cx, cy, R in KNOBS:
+    r = np.hypot(XX - cx, YY - cy)
+    mk = (r < R * 0.86) & (lum(A) > 95)
+    mk = cv2.dilate(mk.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & (r < R * 0.88)
+    ring_fill(cx, cy, mk, R)
 
-def normals(h, scale_px):
-    gy, gx = np.gradient(h, 1.0 / scale_px)
+# ------------------------------------------------------------------ 2. leviers des inverseurs
+for cx, cy in TOGGLES:
+    r = np.hypot(XX - cx, YY - cy)
+    # levier (vers le bas sur le visuel) : tige et boule dans la bague interieure
+    mk = (r < 15.5) & ((YY > cy - 7) & (np.abs(XX - cx) < 10.5))
+    mk |= (r < 9.5)
+    ring_fill(cx, cy, mk, 16)
+
+# ------------------------------------------------------------------ 3. LED : lueur bleue retiree, facade refaite
+lx, ly = LED
+r = np.hypot(XX - lx, YY - ly)
+ref_ring = (r > 62) & (r < 80)
+# composante basse frequence de la facade autour de la LED : moyenne radiale prise hors de la lueur
+low = cv2.GaussianBlur(A, (0, 0), 7)
+target = np.median(low[ref_ring], axis=0)
+w = np.clip((62 - r) / 30.0, 0, 1)[..., None]
+A = A - (low - target) * w                       # retire la teinte et l'eclat bleus, garde le grain et le texte
+# coeur (LED + bague) : grain de peinture recopie d'une zone propre
+core = r < 15
+src = A[int(ly) + 40:int(ly) + 72, int(lx) - 60:int(lx) - 28]
+hp = src - cv2.GaussianBlur(src, (0, 0), 3)
+ys, xs = np.where(core)
+A[ys, xs] = target + hp[(ys - ys.min()) % hp.shape[0], (xs - xs.min()) % hp.shape[1]]
+A = np.clip(A, 0, 255)
+
+# ------------------------------------------------------------------ 4. textes de l'ecran et de la barre de presets
+# la zone du texte est refaite en recopiant (par translation horizontale) des cases propres de la meme rangee :
+# le cadrillage discret de l'ecran et le degrade vertical de la barre sont conserves ; raccords fondus sur 8 px.
+def retile(x_from, x_to, y_from, y_to, src_x0, period, feather=8.0):
+    xs = np.arange(int(x_from), int(x_to))
+    ys = np.arange(int(y_from), int(y_to))
+    sxs = src_x0 + np.mod(xs - src_x0, period)
+    XXs, YYs = np.meshgrid(sxs, ys)
+    patch = bilinear(A, XXs.astype(np.float32), YYs.astype(np.float32))
+    wx = np.clip(np.minimum(xs - x_from, x_to - 1 - xs) / feather, 0, 1)[None, :, None]
+    A[int(y_from):int(y_to), int(x_from):int(x_to)] = A[int(y_from):int(y_to), int(x_from):int(x_to)] * (1 - wx) + patch * wx
+retile(346, 572, 549, 598, 242.0, 112.5)        # ecran : texte entre x 361 et 551
+retile(360, 556, 615, 649, 262.0, 90.0)         # barre de presets : texte entre x 375 et 537 (fleches gardees)
+A = np.clip(A, 0, 255)
+
+# ------------------------------------------------------------------ 5. mise a l'echelle du cadre 1520 x 1916
+W2, H2 = 1520, 1916
+S2 = W2 / W                                      # px du visuel -> px du fond
+big = cv2.resize(A, (W2, H2), interpolation=cv2.INTER_LANCZOS4)
+sharp = big + 0.35 * (big - cv2.GaussianBlur(big, (0, 0), 1.2))   # rend un peu du piqué perdu a l'agrandissement
+img = np.clip(sharp, 0, 255)
+
+PX = 2.0                                          # px du fond par unite
+U = lambda v: v * K                               # px visuel -> unites
+L = np.array([-0.46, -0.62, 0.64]); L /= np.linalg.norm(L)
+HV = (L + np.array([0, 0, 1.0])); HV /= np.linalg.norm(HV)
+
+def normals(h, s):
+    gy, gx = np.gradient(h, 1.0 / s)
     n = np.dstack([-gx, -gy, np.ones_like(h)])
     return n / np.linalg.norm(n, axis=2, keepdims=True)
 
-def blur(a, s_units):
-    return cv2.GaussianBlur(a, (0, 0), s_units * PX)
-
-# ------------------------------------------------------------------ 1. fond (plan de travail sombre)
-bg = np.zeros((H2, W2, 3), np.float32)
-r = np.hypot((ux - 380) / 520, (uy - 470) / 640)
-base = 13 + 12 * np.clip(1 - r, 0, 1) ** 1.5
-bg[:] = np.dstack([base * 0.92, base * 1.0, base * 0.95])
-bg += rng.normal(0, 1.1, (H2, W2, 1)).astype(np.float32)
-
-# ------------------------------------------------------------------ 2. boitier : forme, bord arrondi, ombre portee
-x0, y0, x1, y1 = PEDAL
-sd = rrect_sdf(ux, uy, x0, y0, x1, y1, PR)                       # < 0 a l'interieur
-inside = np.clip(0.5 - sd * PX, 0, 1)
-
-# ombre portee (douce + contact), vers le bas a droite
-sh_far = blur((rrect_sdf(ux - 13, uy - 19, x0, y0, x1, y1, PR) < 0).astype(np.float32), 13)
-sh_near = blur((rrect_sdf(ux - 3, uy - 5, x0, y0, x1, y1, PR) < 0).astype(np.float32), 3.5)
-bg *= (1 - 0.62 * sh_far[..., None]) * (1 - 0.45 * sh_near[..., None])
-
-# relief : bord arrondi de la fonderie (rayon 9 unites) ; facade lisse (pas de verrues)
-BEV = 9.0
-d_in = np.clip(-sd, 0, None)
-h = BEV * np.sqrt(np.clip(1 - np.clip(1 - d_in / BEV, 0, 1) ** 2, 0, 1))
-
-# zones degagees (commandes, inscriptions, ecran, footswitch, logo) : pas de verrues
-clear = np.zeros((H2, W2), np.float32)
-def clear_disk(c, rr):
-    global clear
-    clear = np.maximum(clear, (np.hypot(ux - c[0], uy - c[1]) < rr).astype(np.float32))
-def clear_rect(x, y, w, hh, pad=8):
-    global clear
-    clear = np.maximum(clear, ((ux > x - pad) & (ux < x + w + pad) & (uy > y - pad) & (uy < y + hh + pad)).astype(np.float32))
-for k_, c in KNOBS.items(): clear_disk(c, KNOB_RS[k_] + 16)
-for c in TOGGLES.values(): clear_disk(c, 34)
-clear_disk(LED, 24); clear_disk(FOOT, 74)
-clear_rect(STATUS[0], STATUS[1], STATUS[2], PRESET[1] + PRESET[3] - STATUS[1], 10)
-for lab in ((262, 238), (498, 238), (380, 420), (240, 420), (520, 420)): clear_rect(lab[0] - 60, lab[1] - 14, 120, 28, 4)
-clear_rect(190, 548, 380, 104, 6)          # nom
-clear_rect(250, 890, 260, 34, 4)           # logo
-clear_rect(140, JACK_Y - 14, 52, 28, 2); clear_rect(568, JACK_Y - 14, 52, 28, 2)
-clear = blur(clear, 6)
-
-bumps = np.zeros((H2, W2), np.float32)   # v1.0 : texture cornichon en relief retiree, facade lisse
-N = normals(h, PX)
-
-# peinture vert cornichon metallisee : couleur de base + paillettes dorees + leger peau d'orange
-base_col = np.array([66, 150, 34], np.float32)     # vert vif metallise, proche de la Swollen Pickle
-dark_col = np.array([38, 98, 22], np.float32)
-# degrade : centre un peu plus clair, bords plus sombres (peinture plus fine sur les aretes)
-cg = np.clip(1 - np.hypot((ux - 380) / 300, (uy - 470) / 520), 0, 1)
-col = dark_col + (base_col - dark_col) * (0.55 + 0.45 * cg)[..., None]
-col = col * (1 + 0.10 * bumps[..., None] / 1.6)                    # verrues un peu plus claires (peinture plus epaisse)
-flake = rng.random((H2, W2)).astype(np.float32)
-flake = np.where(flake > 0.985, rng.uniform(0.5, 1.0, (H2, W2)).astype(np.float32), 0.0)
-orange = blur(rng.normal(0, 1, (H2, W2)).astype(np.float32), 1.2) * 0.35
-Nl = N + np.dstack([np.zeros_like(orange), orange, np.zeros_like(orange)]) * 0.15
-Nl /= np.linalg.norm(Nl, axis=2, keepdims=True)
-ndl = np.clip((Nl * L).sum(-1), 0, 1)
-ndh = np.clip((Nl * HV).sum(-1), 0, 1)
-# grande tache de lumiere (lampe en haut a gauche) sur la facade
-lamp = np.exp(-(((ux - 250) / 330) ** 2 + ((uy - 230) / 420) ** 2))
-diffuse = 0.28 + 0.95 * ndl
-spec = 0.16 * ndh ** 30 * (0.6 + 0.8 * lamp) + 0.55 * ndh ** 220
-face = col * diffuse[..., None] * (0.86 + 0.28 * lamp[..., None])
-face += spec[..., None] * np.array([214, 230, 190], np.float32)
-face += (flake * (0.35 + 0.9 * ndh ** 8) * (0.5 + lamp))[..., None] * np.array([150, 150, 70], np.float32)
-# arete du bord : liseré clair cote lumiere, sombre cote ombre (fonderie)
-edge = smooth(0, 2.5, d_in) * (1 - smooth(2.5, 9, d_in))
-face *= (1 - 0.18 * edge[..., None] * (1 - ndl[..., None]))
-
-img = bg * (1 - inside[..., None]) + face * inside[..., None]
-
-# ------------------------------------------------------------------ 3. jacks du kit (tranches) : OUT a gauche, IN a droite
-def paste_rgba(dst, im, x, y):
-    a = np.asarray(im).astype(np.float32)
-    hh, ww = a.shape[:2]
-    xa, ya = int(round(x)), int(round(y))
-    sub = dst[ya:ya + hh, xa:xa + ww]
-    al = a[..., 3:4] / 255
-    dst[ya:ya + hh, xa:xa + ww] = sub * (1 - al) + a[..., :3] * al
-
-# v1.0 : embases jack vues de dessus, axe horizontal, sortant des tranches (rendu 3D, meme lumiere que la pedale).
-# Elles sont sur le cote du boitier : aucune ombre portee sur le plan de travail.
-# De la tranche vers l'exterieur : rondelle, ecrou hexagonal (un plat vers le haut), douille filetee.
-JACK_PARTS = [  # (longueur, demi-hauteur, type)
-    (4.0, 40.0, 'washer'),
-    (17.0, 46.0, 'hex'),
-    (13.0, 31.0, 'thread'),
-]
-def render_jack(side):
-    SSJ = 3; k = PX * SSJ
-    Lx = sum(p[0] for p in JACK_PARTS); Hh = max(p[1] for p in JACK_PARTS) + 2
-    n_w, n_h = int(math.ceil(Lx * k)), int(math.ceil(2 * Hh * k))
-    yk, xk = np.mgrid[0:n_h, 0:n_w].astype(np.float32)
-    t = (xk + 0.5) / k                         # distance depuis la tranche (unites)
-    yv = (yk + 0.5) / k - Hh                   # vertical (unites), 0 = axe du jack
-    nx = np.zeros_like(t); ny = np.zeros_like(t); nz = np.zeros_like(t); mask = np.zeros_like(t)
-    shade_k = np.ones_like(t)
-    x_out = 1.0 if side == 'R' else -1.0       # direction de sortie dans l'image
-    t0 = 0.0
-    for ln, hr, kind in JACK_PARTS:
-        sel = (t >= t0) & (t < t0 + ln)
-        u = (t - t0) / ln                      # 0 = cote tranche, 1 = cote exterieur
-        if kind == 'hex':
-            a_ = hr                            # demi-hauteur = rayon aux sommets ; plat superieur de demi-largeur a/2
-            ins = sel & (np.abs(yv) < a_)
-            top = ins & (np.abs(yv) <= a_ / 2)
-            slope = ins & (np.abs(yv) > a_ / 2)
-            nz = np.where(top, 1.0, np.where(slope, 0.5, nz))
-            ny = np.where(slope, np.sign(yv) * 0.866, np.where(top, 0.0, ny))
-            # chanfreins aux deux bouts de l'ecrou
-            ch = np.clip(1 - np.minimum(u, 1 - u) * ln / 1.6, 0, 1)
-            nx = np.where(ins, x_out * np.sign(u - 0.5) * 0.55 * ch, nx)
-            mask = np.where(ins, 1.0, mask)
-        else:
-            r_ = hr
-            ins = sel & (np.abs(yv) < r_)
-            s = np.clip(yv / r_, -0.999, 0.999)
-            ny = np.where(ins, s, ny); nz = np.where(ins, np.sqrt(1 - s * s), nz)
-            if kind == 'thread':
-                th = np.sin((t - t0) * 2 * math.pi / 1.6)
-                nx = np.where(ins, x_out * 0.45 * th, nx)
-                shade_k = np.where(ins, 0.82 + 0.18 * th, shade_k)
-            mask = np.where(ins, 1.0, mask)
-        t0 += ln
-    N_ = np.dstack([nx, ny, nz]); N_ /= np.maximum(np.linalg.norm(N_, axis=2, keepdims=True), 1e-6)
-    ndl_ = np.clip((N_ * L).sum(-1), 0, 1); ndh_ = np.clip((N_ * HV).sum(-1), 0, 1)
-    # nickel : reflet de l'environnement (sombre en bas, clair vers la lampe) + speculaire
-    env = 0.5 + 0.5 * np.clip(-N_[..., 1] * 0.8 + N_[..., 2] * 0.4, -1, 1)
-    c = (34 + 120 * ndl_ ** 1.5 + 70 * env + 230 * ndh_ ** 70) * shade_k
-    rgb = np.dstack([c * 0.98, c * 1.0, c * 1.02])
-    if side == 'L':
-        rgb = rgb[:, ::-1]; mask = mask[:, ::-1]          # geometrie vers la gauche (normales deja orientees, pas de miroir de la lumiere)
-    rgb = cv2.resize(rgb, (n_w // SSJ, n_h // SSJ), interpolation=cv2.INTER_AREA)
-    mask = cv2.resize(mask.astype(np.float32), (n_w // SSJ, n_h // SSJ), interpolation=cv2.INTER_AREA)
-    return rgb, mask, Lx, Hh
-
-for side in ('L', 'R'):
-    jrgb, jm, Lx, Hh = render_jack(side)
-    hh_, ww_ = jm.shape
-    ya = int(round(U(JACK_Y - Hh)))
-    xa = int(round(U(x0 - Lx))) + 1 if side == 'L' else int(round(U(x1))) - 1
-    sub = img[ya:ya + hh_, xa:xa + ww_]
-    img[ya:ya + hh_, xa:xa + ww_] = sub * (1 - jm[..., None]) + jrgb * jm[..., None]
-
-# ------------------------------------------------------------------ 4. inscriptions (encre creme serigraphiee)
-ink = np.array([236, 226, 190], np.float32)
-def text_layer(items):
-    lay = Image.new('L', (W2, H2), 0); d = ImageDraw.Draw(lay)
-    for txt, (cx, cy), font, track in items:
-        f = ImageFont.truetype(os.path.join(FONTS, font), int(U(track[0])))
-        sp = U(track[1])
-        widths = [d.textlength(ch, font=f) for ch in txt]
-        tw = sum(widths) + sp * (len(txt) - 1)
-        x = U(cx) - tw / 2
-        asc, desc = f.getmetrics()
-        for ch, w_ in zip(txt, widths):
-            d.text((x, U(cy) - (asc - desc * 0.2) * 0.62), ch, font=f, fill=255)
-            x += w_ + sp
-    return np.asarray(lay).astype(np.float32) / 255
-
-labels = [('LOUDNESS', (258, 248), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('SUSTAIN', (502, 248), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('FILTER', (380, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('CRUNCH', (240, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('SCOOP', (520, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('OUT', (166, JACK_Y), 'BarlowCondensed-SemiBold.ttf', (14, 1.2)),
-          ('IN', (594, JACK_Y), 'BarlowCondensed-SemiBold.ttf', (14, 1.2)),
-          ('STRONG', (380, 566), 'BarlowCondensed-Bold.ttf', (24, 9.0)),
-          ('PICKLE', (380, 614), 'BarlowCondensed-ExtraBold.ttf', (66, 3.0)),
-          ('FUZZ', (380, 657), 'BarlowCondensed-Medium.ttf', (13, 6.0))]
-ta = text_layer(labels)
-# encre : legerement mate, suit un peu l'eclairage
-inkc = ink[None, None, :] * (0.80 + 0.22 * ndl[..., None]) * (0.92 + 0.10 * lamp[..., None])
-img = img * (1 - ta[..., None]) + inkc * ta[..., None]
-
-# petits ticks de course autour des potards (repere 7 h -> 5 h), encre creme
-tick = Image.new('L', (W2, H2), 0); dt = ImageDraw.Draw(tick)
-for kname, (cx, cy) in KNOBS.items():
-    KR = KNOB_RS[kname]
-    for k in range(11):
-        a = math.radians(-150 + 30 * k)
-        r0, r1 = KR + 6, KR + (12 if k in (0, 5, 10) else 9)
-        p0 = (U(cx + r0 * math.sin(a)), U(cy - r0 * math.cos(a))); p1 = (U(cx + r1 * math.sin(a)), U(cy - r1 * math.cos(a)))
-        dt.line([p0, p1], fill=255, width=int(U(1.6)))
-tk = np.asarray(tick).astype(np.float32) / 255 * 0.85
-img = img * (1 - tk[..., None]) + inkc * tk[..., None]
-
-# logo Studio Wiga (blanc) en bas
-logo = Image.open(os.path.join(AS, 'logo_studio_wiga_blanc.png')).convert('RGBA')
-LW = int(U(190)); logo = logo.resize((LW, round(logo.height * LW / logo.width)), Image.LANCZOS)
-la = np.asarray(logo).astype(np.float32) / 255
-lx, ly = int(U(380) - LW / 2), int(U(906) - logo.height / 2)
-reg = img[ly:ly + logo.height, lx:lx + LW]
-img[ly:ly + logo.height, lx:lx + LW] = reg * (1 - la[..., 3:]) + (la[..., :3] * 255 * 0.93) * la[..., 3:]
-
-# ------------------------------------------------------------------ 5. potards (plastique noir, rendu 3D, sans repere)
-SS = 3
-def render_knob(R):
-    n = int(math.ceil(U(R * 2 + 40) * SS / 2)) * 2
-    k = PX * SS
-    yk, xk = np.mgrid[0:n, 0:n].astype(np.float32)
-    lx_, ly_ = (xk + 0.5) / k - n / k / 2, (yk + 0.5) / k - n / k / 2
-    rr = np.hypot(lx_, ly_); th = np.arctan2(ly_, lx_)
-    top = 0.80 * R
-    hk = np.zeros_like(rr)
-    hk = np.where(rr < top, 22.0 + 0.6 * (1 - (rr / top) ** 2), hk)                     # dessus tres legerement bombe
-    ch = (rr >= top) & (rr < 0.87 * R)
-    hk = np.where(ch, 22.0 - (rr - top) / (0.07 * R) * 4.0, hk)                         # chanfrein
-    sk = (rr >= 0.87 * R) & (rr < R)
-    knurl = 0.55 * (np.cos(th * 36) > 0.0)                                               # moletage
-    hk = np.where(sk, 18.0 - (rr - 0.87 * R) / (0.13 * R) * 15.0 + knurl * (rr < 0.985 * R), hk)
-    mask = (rr < R).astype(np.float32)
-    mask = cv2.GaussianBlur(mask, (0, 0), 0.6)
-    Nk = normals(hk, k)
-    ndl_ = np.clip((Nk * L).sum(-1), 0, 1); ndh_ = np.clip((Nk * HV).sum(-1), 0, 1)
-    albedo = 9.0
-    # reflet conique du dessus (plastique tourne) : bande claire orientee vers la lumiere, fixe
-    cone = np.where(rr < top, 0.5 + 0.5 * np.cos(2 * (th - math.atan2(-0.62, -0.46))), 0) * np.clip(rr / top, 0, 1) ** 0.7
-    c = albedo * (0.4 + 1.6 * ndl_) + 120 * ndh_ ** 40 + 260 * ndh_ ** 400 + 26 * cone
-    c = np.where(ch, c + 60 * ndl_ ** 3, c)                                              # arete du chanfrein qui accroche la lumiere
-    rgb = np.dstack([c * 0.97, c * 1.0, c * 1.04])
-    rgb = cv2.resize(rgb, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
-    mask = cv2.resize(mask, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
-    return rgb, mask
-
-_kcache = {}
-for kname, (cx, cy) in KNOBS.items():
-    if KNOB_RS[kname] not in _kcache: _kcache[KNOB_RS[kname]] = render_knob(KNOB_RS[kname])
-    krgb, kmask = _kcache[KNOB_RS[kname]]
-    kn = krgb.shape[0]
-    xa, ya = int(round(U(cx) - kn / 2)), int(round(U(cy) - kn / 2))
-    # ombre portee (douce) + ombre de contact
-    shadow = np.zeros((H2, W2), np.float32)
-    shadow[ya + int(U(6)):ya + int(U(6)) + kn, xa + int(U(4)):xa + int(U(4)) + kn] = kmask
-    s1 = blur(shadow, 5)
-    shadow2 = np.zeros((H2, W2), np.float32); shadow2[ya + int(U(1.5)):ya + int(U(1.5)) + kn, xa + int(U(1)):xa + int(U(1)) + kn] = kmask
-    img *= (1 - 0.55 * s1[..., None]) * (1 - 0.5 * blur(shadow2, 1.5)[..., None])
-    sub = img[ya:ya + kn, xa:xa + kn]
-    img[ya:ya + kn, xa:xa + kn] = sub * (1 - kmask[..., None]) + krgb * kmask[..., None]
-
-# ------------------------------------------------------------------ 6. LED eteinte (bague chromee, lentille bleue sombre)
+# LED eteinte : bague chromee fine (comme le visuel) + lentille jaune sombre
+LED_R = 6.6                                        # rayon de la lentille (unites)
 def render_led():
-    R = LED_R * 1.55
-    n = int(U(R * 2 + 12) * SS); k = PX * SS
+    R = LED_R * 1.42; SS = 3; k = PX * SS
+    n = int(math.ceil((R * 2 + 8) * k))
     yk, xk = np.mgrid[0:n, 0:n].astype(np.float32)
     lx_, ly_ = (xk + 0.5) / k - n / k / 2, (yk + 0.5) / k - n / k / 2
     rr = np.hypot(lx_, ly_)
-    hk = np.where(rr < LED_R, 2.5 + 2.0 * np.sqrt(np.clip(1 - (rr / LED_R) ** 2, 0, 1)), 0)
+    hk = np.where(rr < LED_R, 1.8 + 1.6 * np.sqrt(np.clip(1 - (rr / LED_R) ** 2, 0, 1)), 0)
     ring = (rr >= LED_R) & (rr < R)
-    hk = np.where(ring, 3.2 * np.sin(np.clip((rr - LED_R) / (R - LED_R), 0, 1) * math.pi), hk)
+    hk = np.where(ring, 2.6 * np.sin(np.clip((rr - LED_R) / (R - LED_R), 0, 1) * math.pi), hk)
     Nk = normals(hk, k)
-    ndl_ = np.clip((Nk * L).sum(-1), 0, 1); ndh_ = np.clip((Nk * HV).sum(-1), 0, 1)
-    chrome = 40 + 150 * ndl_ ** 2 + 255 * ndh_ ** 60
-    lens = np.dstack([14 + 40 * ndh_ ** 30, 20 + 46 * ndh_ ** 30, 42 + 70 * ndh_ ** 30]) + 230 * (ndh_ ** 500)[..., None]
-    rgb = np.where(ring[..., None], np.dstack([chrome, chrome, chrome * 1.02]), lens)
-    gorge = (rr >= LED_R - 0.9) & (rr < LED_R + 0.4)
-    rgb = np.where(gorge[..., None], rgb * 0.25, rgb)
-    mask = (rr < R).astype(np.float32)
+    ndl = np.clip((Nk * L).sum(-1), 0, 1); ndh = np.clip((Nk * HV).sum(-1), 0, 1)
+    chrome = 60 + 150 * ndl ** 2 + 255 * ndh ** 50
+    lens = np.dstack([58 + 80 * ndh ** 30, 44 + 66 * ndh ** 30, 12 + 30 * ndh ** 30]) + 230 * (ndh ** 500)[..., None]
+    rgb = np.where(ring[..., None], np.dstack([chrome, chrome, chrome * 0.98]), lens)
+    gorge = (rr >= LED_R - 0.7) & (rr < LED_R + 0.3)
+    rgb = np.where(gorge[..., None], rgb * 0.3, rgb)
+    m = (rr < R).astype(np.float32)
     rgb = cv2.resize(rgb, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
-    mask = cv2.resize(mask, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
-    return rgb, mask
-lrgb, lmask = render_led(); ln_ = lrgb.shape[0]
-xa, ya = int(round(U(LED[0]) - ln_ / 2)), int(round(U(LED[1]) - ln_ / 2))
-shadow = np.zeros((H2, W2), np.float32); shadow[ya + 4:ya + 4 + ln_, xa + 3:xa + 3 + ln_] = lmask
-img *= (1 - 0.5 * blur(shadow, 2.0)[..., None])
-img[ya:ya + ln_, xa:xa + ln_] = img[ya:ya + ln_, xa:xa + ln_] * (1 - lmask[..., None]) + lrgb * lmask[..., None]
+    m = cv2.resize(m, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
+    return rgb, m
+LEDU = (U(LED[0]), U(LED[1]))
+lrgb, lm = render_led(); ln_ = lrgb.shape[0]
+xa, ya = int(round(LEDU[0] * PX - ln_ / 2)), int(round(LEDU[1] * PX - ln_ / 2))
+shadow = np.zeros((H2, W2), np.float32); shadow[ya + 3:ya + 3 + ln_, xa + 2:xa + 2 + ln_] = lm
+img *= (1 - 0.45 * cv2.GaussianBlur(shadow, (0, 0), 3)[..., None])
+img[ya:ya + ln_, xa:xa + ln_] = img[ya:ya + ln_, xa:xa + ln_] * (1 - lm[..., None]) + lrgb * lm[..., None]
 
-# ------------------------------------------------------------------ 7. footswitch d'Echoflex (reference Studio Wiga)
-fs = Image.open(os.path.join(HERE, 'fs_echoflex.png')).convert('RGBA')      # 200 unites (ombre comprise), 124 entre plats
-fsk = FOOT_FLATS / 124.0
-fs = fs.resize((round(fs.width * fsk), round(fs.height * fsk)), Image.LANCZOS)
-paste_rgba(img, fs, U(FOOT[0]) - fs.width / 2, U(FOOT[1]) - fs.height / 2)
-FOOT_R = 60.0 * 1.0654 * fsk          # rayon de la zone cliquable (meme rapport que Doorn)
-
-# ------------------------------------------------------------------ 8. calque d'eclairage par la LED bleue
+# calque d'eclairage par la LED jaune (la facade recoit la lumiere ; le grain s'allume, les creux restent sombres)
+GLOW = (LEDU[0] - 128.0, LEDU[1] - 128.0, 256.0, 256.0)
 gx0, gy0, gw, gh = GLOW
-sx, sy = int(U(gx0)), int(U(gy0)); sw, shh = int(U(gw)), int(U(gh))
-regbg = img[sy:sy + shh, sx:sx + sw].copy()
-gu = (np.mgrid[0:shh, 0:sw][1] + 0.5) / PX + gx0; gv = (np.mgrid[0:shh, 0:sw][0] + 0.5) / PX + gy0
-d = np.hypot(gu - LED[0], gv - LED[1])
-hsrc = 9.0                                                     # source a ~9 unites au-dessus de la facade
-E = hsrc ** 3 / (d * d + hsrc * hsrc) ** 1.5                   # loi cos / d^2
-E = 1.25 * E + 0.18 * np.exp(-(d / 70.0) ** 2)                 # tache serree + diffusion large et faible
-blue = np.array([0.30, 0.62, 1.55], np.float32)
-lit = regbg * (1 + E[..., None] * blue * 2.2) + (E[..., None] ** 2) * blue * 60
-inl = inside[sy:sy + shh, sx:sx + sw]
-lit = regbg + (lit - regbg) * inl[..., None]                   # le plan de travail n'est pas eclaire
+sx, sy, sw, sh = int(gx0 * PX), int(gy0 * PX), int(gw * PX), int(gh * PX)
+regbg = img[sy:sy + sh, sx:sx + sw].copy()
+gv, gu = np.mgrid[0:sh, 0:sw].astype(np.float32)
+gu = (gu + 0.5) / PX + gx0; gv = (gv + 0.5) / PX + gy0
+d = np.hypot(gu - LEDU[0], gv - LEDU[1])
+hsrc = 8.0
+E = hsrc ** 3 / (d * d + hsrc * hsrc) ** 1.5
+E = 1.25 * E + 0.16 * np.exp(-(d / 60.0) ** 2)
+yel = np.array([1.55, 1.12, 0.22], np.float32)
+lit = regbg * (1 + E[..., None] * yel * 1.9) + (E[..., None] ** 2) * yel * 55
 add = np.clip(lit, 0, 255) - regbg
 a = np.clip(add.max(-1) / 60.0, 0, 1)
-a = np.maximum(a, np.clip(E * 0.9, 0, 1) * inl)
-src = np.where(a[..., None] > 1e-3, regbg + add / np.maximum(a[..., None], 1e-3), regbg)
-glow = np.dstack([np.clip(src, 0, 255), a[..., None] * 255]).astype(np.uint8)
-Image.fromarray(glow, 'RGBA').resize((512, 512), Image.LANCZOS).save(os.path.join(ROOT, 'glow_blue.png'))
+a = np.maximum(a, np.clip(E * 0.9, 0, 1))
+srcg = np.where(a[..., None] > 1e-3, regbg + add / np.maximum(a[..., None], 1e-3), regbg)
+glow = np.dstack([np.clip(srcg, 0, 255), a[..., None] * 255]).astype(np.uint8)
+Image.fromarray(glow, 'RGBA').resize((512, 512), Image.LANCZOS).save(os.path.join(ROOT, 'glow_yellow.png'))
 
-# ------------------------------------------------------------------ 9. inverseurs du kit -> bande de 3 images carrees
-def tog(name):
-    im = Image.open(os.path.join(AS, 'kit', name)).convert('RGBA')
-    a = np.asarray(im).astype(np.float32)
-    rows = np.arange(a.shape[0])[:, None]
-    a[..., 3] *= np.clip((168 - rows) / 26.0, 0, 1)            # on garde l'inverseur et son ombre, pas les inscriptions du visuel d'origine
-    if 'OFF' in name:
-        a[..., 3] *= np.clip((rows - 30) / 10.0, 0, 1)          # levier en bas : rien au-dessus de la bague (reste du levier du visuel d'origine)
-    im = Image.fromarray(a.astype(np.uint8), 'RGBA')
-    F = 190; frame = Image.new('RGBA', (F, F), (0, 0, 0, 0))
-    frame.alpha_composite(im.crop((0, 0, 186, 190)), (F // 2 - 93, F // 2 - 81))   # centre de la bague au centre de l'image
-    return frame
-frames = [tog('switch_levier_OFF.png'), tog('switch_levier_milieu.png'), tog('switch_levier_ON.png')]   # bas, intermediaire, haut
-F = frames[0].width
-TS = int(round(F * TOG_SCALE))
-strip = Image.new('RGBA', (TS, TS * 3), (0, 0, 0, 0))
-for i, f_ in enumerate(frames): strip.alpha_composite(f_.resize((TS, TS), Image.LANCZOS), (0, i * TS))
-strip.save(os.path.join(ROOT, 'toggle_strip.png'))
-TOG_HALF = TS / PX / 2
+# ------------------------------------------------------------------ 6. leviers des inverseurs (rendu 3D, lumiere du visuel)
+# 3 images carrees : levier bas (comme le visuel), intermediaire (~55 ms pendant la bascule), haut.
+# Seuls le levier et son ombre ont de l'alpha : la bague reste celle du fond.
+TOG_HALF = 26.0                                   # demi-cote de l'image (unites)
+def render_lever(direction):
+    SS = 3; k = PX * SS
+    n = int(round(TOG_HALF * 2 * k))
+    yk, xk = np.mgrid[0:n, 0:n].astype(np.float32)
+    x_ = (xk + 0.5) / k - TOG_HALF; y_ = (yk + 0.5) / k - TOG_HALF
+    hgt = np.full((n, n), -1.0, np.float32); nrm = np.zeros((n, n, 3), np.float32); nrm[..., 2] = 1
+    rod_r = 2.5; ball_r = 5.2; tip = 7.6 * direction        # longueur projetee (unites) : 0 = levier vers l'oeil
+    # tige : de l'axe vers la boule
+    if direction != 0:
+        y0, y1 = (0.0, tip) if tip > 0 else (tip, 0.0)
+        sel = (np.abs(x_) < rod_r) & (y_ >= y0) & (y_ <= y1)
+        s = np.clip(x_ / rod_r, -0.999, 0.999)
+        nn = np.dstack([s, np.zeros_like(s), np.sqrt(1 - s * s)])
+        nn[..., 1] = -0.45 * direction                       # la tige monte vers l'oeil depuis l'axe
+        hz = 4 + 3 * np.sqrt(1 - s * s)
+        put = sel & (hz > hgt)
+        hgt[put] = hz[put]; nrm[put] = nn[put]
+    # boule au bout
+    rb = np.hypot(x_, y_ - tip)
+    sel = rb < ball_r
+    z = np.sqrt(np.clip(1 - (rb / ball_r) ** 2, 0, 1))
+    nn = np.dstack([x_ / ball_r, (y_ - tip) / ball_r, z])
+    hz = 9 + 4 * z
+    put = sel & (hz > hgt)
+    hgt[put] = hz[put]; nrm[put] = nn[put]
+    nrm /= np.linalg.norm(nrm, axis=2, keepdims=True)
+    obj = hgt > 0
+    ndl = np.clip((nrm * L).sum(-1), 0, 1); ndh = np.clip((nrm * HV).sum(-1), 0, 1)
+    env = 0.5 + 0.5 * np.clip(-nrm[..., 1] * 0.7 + nrm[..., 2] * 0.5, -1, 1)
+    c = 14 + 120 * ndl ** 2.2 + 70 * env ** 2 + 255 * ndh ** 45   # nickel poli : plus de contraste que du metal mat
+    rgb = np.dstack([c, c * 1.0, c * 0.97])
+    al = obj.astype(np.float32)
+    # ombre portee vers le bas a droite (douce)
+    sh = np.roll(np.roll(al, int(2.6 * k), 0), int(1.8 * k), 1)
+    sh = cv2.GaussianBlur(sh, (0, 0), 1.8 * k) * 0.55
+    out_a = al + sh * (1 - al)
+    out_rgb = np.where(al[..., None] > 0, rgb, 0) * al[..., None] / np.maximum(out_a[..., None], 1e-4)
+    rgba = np.dstack([out_rgb, out_a * 255])
+    rgba = cv2.resize(rgba, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
+    return np.clip(rgba, 0, 255).astype(np.uint8)
+frames = [render_lever(1), render_lever(0), render_lever(-1)]          # bas, intermediaire, haut
+fs = frames[0].shape[0]
+strip = np.concatenate(frames, axis=0)
+Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
 # ------------------------------------------------------------------ sorties
-out = np.clip(img, 0, 255).astype(np.uint8)
-Image.fromarray(out).save(os.path.join(ROOT, 'background.jpg'), quality=93, subsampling=0)
+Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
-lay = dict(knobs=[list(KNOBS[k]) for k in ('loudness', 'sustain', 'filter')], knobR=[KNOB_RS[k] for k in ('loudness', 'sustain', 'filter')],
-           toggles=[list(TOGGLES[k]) for k in ('crunch', 'scoop')], togHalf=TOG_HALF,
-           led=list(LED), ledR=LED_R, foot=list(FOOT), footR=FOOT_R, glow=list(GLOW),
-           status=list(STATUS), preset=list(PRESET), pedal=list(PEDAL))
-json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
 P = lambda p: '{ %.2ff, %.2ff }' % tuple(p)
-R_ = lambda r: '{ %.2ff, %.2ff, %.2ff, %.2ff }' % tuple(r)
+Rc = lambda r: '{ %.2ff, %.2ff, %.2ff, %.2ff }' % tuple(r)
+kp = [(U(cx), U(cy)) for cx, cy, _ in KNOBS]
+kr = [U(R) for _, _, R in KNOBS]
+tp = [(U(cx), U(cy)) for cx, cy in TOGGLES]
+st = tuple(U(v) for v in STATUS_BOX); pr = tuple(U(v) for v in PRESET_BOX)
+lay = dict(knobs=kp, knobR=kr, toggles=tp, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
+           footR=U(FOOT_R), glow=GLOW, status=st, preset=pr)
+json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
 open(os.path.join(ROOT, 'Layout.h'), 'w').write(f"""// genere par tools/make_background.py - ne pas modifier a la main (repere 760 x 958)
 #pragma once
 #include <juce_graphics/juce_graphics.h>
 namespace layout
 {{
-    const juce::Point<float> knobPos[3] = {{ {P(KNOBS['loudness'])}, {P(KNOBS['sustain'])}, {P(KNOBS['filter'])} }};
-    const float knobR[3] = {{ {KNOB_RS['loudness']:.2f}f, {KNOB_RS['sustain']:.2f}f, {KNOB_RS['filter']:.2f}f }};
-    const juce::Point<float> crunchPos {P(TOGGLES['crunch'])}, scoopPos {P(TOGGLES['scoop'])};
+    const juce::Point<float> knobPos[3] = {{ {P(kp[0])}, {P(kp[1])}, {P(kp[2])} }};
+    const float knobR[3] = {{ {kr[0]:.2f}f, {kr[1]:.2f}f, {kr[2]:.2f}f }};      // rayon du moletage
+    const juce::Point<float> crunchPos {P(tp[0])}, scoopPos {P(tp[1])};
     const float togHalf = {TOG_HALF:.2f}f;
-    const juce::Point<float> ledPos {P(LED)}; const float ledR = {LED_R:.2f}f;
-    const juce::Point<float> footPos {P(FOOT)}; const float footR = {FOOT_R:.2f}f;
-    const juce::Rectangle<float> glowRect {R_(GLOW)};
-    const juce::Rectangle<float> statusRect {R_(STATUS)};
-    const juce::Rectangle<float> presetRect {R_(PRESET)};
+    const juce::Point<float> ledPos {P(LEDU)}; const float ledR = {LED_R:.2f}f;
+    const juce::Point<float> footPos {P((U(FOOT[0]), U(FOOT[1])))}; const float footR = {U(FOOT_R):.2f}f;
+    const juce::Rectangle<float> glowRect {Rc(GLOW)};
+    const juce::Rectangle<float> statusRect {Rc(st)};
+    const juce::Rectangle<float> presetRect {Rc(pr)};
 }}
 """)
-print('ok', out.shape, 'toggle', TS, 'footR', round(FOOT_R, 2))
+print('ok', img.shape, 'toggle frame', fs)

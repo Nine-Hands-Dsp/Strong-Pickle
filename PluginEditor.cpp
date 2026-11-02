@@ -23,9 +23,9 @@ namespace
     const float rotEnd   = MathConstants<float>::pi * (17.0f / 6.0f);   // +150 degres (5 h)
 
     // LED bleue (comme la pedale d'origine)
-    const Colour ledCore (0xffe6f4ff), ledMid (0xff2f86ff), ledDeep (0xff0a2a8c);
-    const Colour inkCream (0xffece2be);
-    const Colour panelDark (0xff0b140a);
+    const Colour ledCore (0xfffff8d8), ledMid (0xffffc21a), ledDeep (0xff8a5600);   // LED jaune
+    const Colour inkStatus (0xffd6e8b6);     // texte de l'ecran du visuel
+    const Colour inkPreset (0xffdae0be);     // texte de la barre de presets du visuel
 
     const char* const valueIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "gate" };
     constexpr int numValueIds = 7;
@@ -47,15 +47,17 @@ void PickleKnobLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, 
     const float R = (float) jmin (w, h) * 0.5f;
     const float a = startAngle + pos * (endAngle - startAngle);
     const Point<float> dir (std::sin (a), -std::cos (a));
-    const Point<float> p0 = c + dir * (0.20f * R), p1 = c + dir * (0.74f * R);
-    const float lw = 0.085f * R;
-    // peinture un peu plus claire tournee vers la lumiere, ombre tres legere en bas a droite
+    ignoreUnused (dir);
+    // repere du visuel : barrette claire aux bouts arrondis, de 16 % a 81 % du rayon du moletage
+    const float r0 = 0.16f * R, r1 = 0.81f * R, bw = 0.18f * R;
+    Path p; p.addRoundedRectangle (-bw * 0.5f, -r1, bw, r1 - r0, bw * 0.30f);
+    const auto tr = AffineTransform::rotation (a).translated (c);
+    // peinture un peu plus claire tournee vers la lumiere (haut gauche), ombre tres legere en bas a droite
     const float lightFacing = 0.5f + 0.5f * std::cos (a + MathConstants<float>::pi * 0.25f);
-    g.setColour (Colours::black.withAlpha (0.45f));
-    g.drawLine ({ p0.translated (R * 0.012f, R * 0.016f), p1.translated (R * 0.012f, R * 0.016f) }, lw);
-    Path p; p.addLineSegment ({ p0, p1 }, lw);
-    g.setColour (Colour::greyLevel (0.88f + 0.10f * lightFacing));
-    g.strokePath (p, PathStrokeType (lw, PathStrokeType::curved, PathStrokeType::rounded));
+    g.setColour (Colours::black.withAlpha (0.40f));
+    g.fillPath (p, tr.translated (R * 0.010f, R * 0.014f));
+    g.setColour (Colour (0xffdedfd9).interpolatedWith (Colours::white, 0.35f * lightFacing));
+    g.fillPath (p, tr);
 }
 
 //==============================================================================
@@ -170,7 +172,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
       footswitch   (*p.apvts.getParameter ("active"))
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
-    glowBlue   = ImageCache::getFromMemory (BinaryData::glow_blue_png,  BinaryData::glow_blue_pngSize);
+    glowYellow = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
     labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
 
@@ -276,7 +278,7 @@ void PickleAudioProcessorEditor::rebuildCaches (float sc)
 
     const float s = (float) h / (float) baseH;
     const int gpx = roundToInt (glowRect.getWidth() * s * sc);
-    glowBlueS = (gpx >= glowBlue.getWidth()) ? glowBlue : glowBlue.rescaled (gpx, gpx, Graphics::highResamplingQuality);
+    glowYellowS = (gpx >= glowYellow.getWidth()) ? glowYellow : glowYellow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
     repaint();
 }
 
@@ -447,10 +449,10 @@ void PickleAudioProcessorEditor::drawLed (Graphics& g)
     if (level <= 0.003f) return;
 
     // la facade recoit la lumiere de la LED (calque precalcule : fond x eclairement x couleur, alpha)
-    if (glowBlueS.isValid())
+    if (glowYellowS.isValid())
     {
         g.setOpacity (level);
-        g.drawImage (glowBlueS, glowRect);
+        g.drawImage (glowYellowS, glowRect);
     }
     g.setOpacity (1.0f);
 
@@ -479,25 +481,17 @@ void PickleAudioProcessorEditor::drawStatus (Graphics& g)
 {
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    g.setColour (panelDark.withAlpha (0.92f * a));
-    g.fillRoundedRectangle (statusRect, 8.0f);
-    g.setColour (inkCream.withAlpha (0.40f * a));
-    g.drawRoundedRectangle (statusRect.reduced (0.75f), 9.0f, 1.3f);
-
+    // l'ecran (cadre et cases) fait partie du fond : seul le texte est dessine
     const bool longLine = lastLine1.length() > 18;
     g.setFont (Font (FontOptions (labelFace).withHeight (longLine ? 22.0f : 34.0f)));
-    g.setColour (inkCream.withAlpha (a));
+    g.setColour (inkStatus.withAlpha (a));
     g.drawFittedText (lastLine1, statusRect.reduced (10.0f, 0.0f).toNearestInt(), Justification::centred, longLine ? 2 : 1, 0.75f);
 }
 
 void PickleAudioProcessorEditor::drawPresetBar (Graphics& g)
 {
     const auto r = presetRect;
-    g.setColour (panelDark.withAlpha (0.82f));
-    g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
-    g.setColour (inkCream.withAlpha (hoverZone != 0 ? 0.62f : 0.30f));
-    g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.1f);
-
+    // la barre et ses fleches font partie du fond : seuls le texte et le survol des fleches sont dessines
     const float aw = 34.0f;
     auto arrow = [&] (Rectangle<float> ar, bool left, bool hot)
     {
@@ -506,14 +500,15 @@ void PickleAudioProcessorEditor::drawPresetBar (Graphics& g)
         const float s = 6.5f;
         if (left) p.addTriangle (c.x + s * 0.6f, c.y - s, c.x + s * 0.6f, c.y + s, c.x - s * 0.8f, c.y);
         else      p.addTriangle (c.x - s * 0.6f, c.y - s, c.x - s * 0.6f, c.y + s, c.x + s * 0.8f, c.y);
-        g.setColour (inkCream.withAlpha (hot ? 1.0f : 0.62f));
+        if (! hot) return;
+        g.setColour (inkPreset.withAlpha (0.85f));
         g.fillPath (p);
     };
     arrow (r.withWidth (aw), true, hoverZone == 1);
     arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hoverZone == 3);
 
     g.setFont (Font (FontOptions (labelFace).withHeight (23.0f)));
-    g.setColour ((midiFlash > 0 ? Colour (0xff9fd0ff) : inkCream).withAlpha (hoverZone == 2 ? 1.0f : 0.88f));
+    g.setColour ((midiFlash > 0 ? Colour (0xffffd75a) : inkPreset).withAlpha (hoverZone == 2 ? 1.0f : 0.88f));
     g.drawFittedText (lastPreset, r.reduced (aw, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
 }
 
