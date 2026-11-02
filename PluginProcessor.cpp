@@ -10,7 +10,7 @@ static const PicklePreset factoryPresets[] =
 {
     //  nom                      loud  sust  filt  crunch scoop
     { "Classic Pickle",          5.0f, 5.0f, 5.0f, 0, 0 },   // les deux inverseurs en bas : la Swollen Pickle a trois potards
-    { "Jumbo Wall",              5.0f, 8.0f, 4.5f, 0, 1 },
+    { "Siamese Dream",           5.0f, 7.0f, 5.5f, 0, 0 },   // Big Muff op-amp de Corgan : sustain vers 14 h, tone a midi, mediums a peine creuses, compresse
     { "Smooth Low Fuzz",         6.0f, 2.5f, 5.0f, 0, 0 },   // sustain vers 9 h : fuzz lisse
     { "Sputter Zone",            5.5f, 5.0f, 5.5f, 0, 0 },   // sustain a midi : les fins de notes crachotent
     { "Open Crunch",             4.5f, 6.0f, 6.0f, 1, 0 },

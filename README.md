@@ -65,7 +65,7 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 
 ## Presets d'usine
 
-1. Classic Pickle · 2. Jumbo Wall · 3. Smooth Low Fuzz · 4. Sputter Zone · 5. Open Crunch · 6. Scooped Power Chords ·
+1. Classic Pickle · 2. Siamese Dream · 3. Smooth Low Fuzz · 4. Sputter Zone · 5. Open Crunch · 6. Scooped Power Chords ·
 7. Dark Wool · 8. Bright Lead · 9. Amp Pusher · 10. Bass Pickle · 11. Doom Sludge
 
 ## Fichiers

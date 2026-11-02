@@ -8,7 +8,7 @@ namespace
 {
     // Positions dans le repere de reference 760 x 958 (fond 1520 x 1916), generees par tools/make_background.py
     const Point<float>* const knobPos = layout::knobPos;
-    const float knobR = layout::knobR;
+    const float* const knobRs = layout::knobR;
     const Point<float> crunchPos = layout::crunchPos, scoopPos = layout::scoopPos;
     const float togHalf = layout::togHalf;
     const Point<float> ledPos = layout::ledPos;
@@ -284,7 +284,7 @@ void PickleAudioProcessorEditor::resized()
 {
     // anti-gel : jamais de setSize ici ; les limites du constrainer suffisent
     for (int i = 0; i < PickleAudioProcessor::numKnobs; ++i)
-        knobs[i].setBounds (scaled ({ knobPos[i].x - knobR, knobPos[i].y - knobR, knobR * 2.0f, knobR * 2.0f }));
+        knobs[i].setBounds (scaled ({ knobPos[i].x - knobRs[i], knobPos[i].y - knobRs[i], knobRs[i] * 2.0f, knobRs[i] * 2.0f }));
     auto lever = [this] (LeverSwitch& l, Point<float> c)
     {
         l.setBounds (scaled ({ c.x - togHalf, c.y - togHalf, togHalf * 2.0f, togHalf * 2.0f }));

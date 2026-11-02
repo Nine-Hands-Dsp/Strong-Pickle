@@ -32,15 +32,16 @@ rng = np.random.default_rng(41)
 
 # ------------------------------------------------------------------ reperes (unites 760 x 958)
 PEDAL = (130.0, 22.0, 630.0, 938.0); PR = 30.0                     # boitier, rayon des angles
-KNOB_R = 46.0
-KNOBS = {'loudness': (262.0, 168.0), 'sustain': (498.0, 168.0), 'filter': (380.0, 350.0)}
+KNOB_R = 46.0                                                      # FILTER
+KNOB_RS = {'loudness': 60.0, 'sustain': 60.0, 'filter': KNOB_R}     # v1.0 : gros potards du haut, comme sur la Swollen Pickle
+KNOBS = {'loudness': (258.0, 160.0), 'sustain': (502.0, 160.0), 'filter': (380.0, 350.0)}
 TOGGLES = {'crunch': (240.0, 352.0), 'scoop': (520.0, 352.0)}
 TOG_SCALE = 0.86                                                   # kit FreakOut -> Strong Pickle
 LED = (380.0, 690.0); LED_R = 7.6
 FOOT = (380.0, 800.0); FOOT_FLATS = 104.0                          # largeur entre plats de l'ecrou
 STATUS = (196.0, 448.0, 368.0, 48.0)
 PRESET = (186.0, 502.0, 388.0, 34.0)
-JACK_Y = 262.0
+JACK_Y = 480.0                                                     # jacks au milieu de la hauteur du boitier
 GLOW = (LED[0] - 128.0, LED[1] - 112.0, 256.0, 256.0)
 
 U = lambda v: v * PX
@@ -81,7 +82,7 @@ sh_far = blur((rrect_sdf(ux - 13, uy - 19, x0, y0, x1, y1, PR) < 0).astype(np.fl
 sh_near = blur((rrect_sdf(ux - 3, uy - 5, x0, y0, x1, y1, PR) < 0).astype(np.float32), 3.5)
 bg *= (1 - 0.62 * sh_far[..., None]) * (1 - 0.45 * sh_near[..., None])
 
-# relief : bord arrondi de la fonderie (rayon 9 unites) + verrues de cornichon dans la peinture
+# relief : bord arrondi de la fonderie (rayon 9 unites) ; facade lisse (pas de verrues)
 BEV = 9.0
 d_in = np.clip(-sd, 0, None)
 h = BEV * np.sqrt(np.clip(1 - np.clip(1 - d_in / BEV, 0, 1) ** 2, 0, 1))
@@ -94,7 +95,7 @@ def clear_disk(c, rr):
 def clear_rect(x, y, w, hh, pad=8):
     global clear
     clear = np.maximum(clear, ((ux > x - pad) & (ux < x + w + pad) & (uy > y - pad) & (uy < y + hh + pad)).astype(np.float32))
-for c in KNOBS.values(): clear_disk(c, KNOB_R + 16)
+for k_, c in KNOBS.items(): clear_disk(c, KNOB_RS[k_] + 16)
 for c in TOGGLES.values(): clear_disk(c, 34)
 clear_disk(LED, 24); clear_disk(FOOT, 74)
 clear_rect(STATUS[0], STATUS[1], STATUS[2], PRESET[1] + PRESET[3] - STATUS[1], 10)
@@ -104,27 +105,12 @@ clear_rect(250, 890, 260, 34, 4)           # logo
 clear_rect(140, JACK_Y - 14, 52, 28, 2); clear_rect(568, JACK_Y - 14, 52, 28, 2)
 clear = blur(clear, 6)
 
-bumps = np.zeros((H2, W2), np.float32)
-pts = []
-tries = 0
-while len(pts) < 170 and tries < 20000:
-    tries += 1
-    px_, py_ = rng.uniform(x0 + 16, x1 - 16), rng.uniform(y0 + 16, y1 - 16)
-    rr_ = rng.uniform(5.0, 14.0)
-    if any(math.hypot(px_ - a, py_ - b) < (rr_ + c) * 1.25 for a, b, c in pts): continue
-    pts.append((px_, py_, rr_))
-for px_, py_, rr_ in pts:
-    xa, xb = int(max(0, U(px_ - rr_ * 2))), int(min(W2, U(px_ + rr_ * 2)))
-    ya, yb = int(max(0, U(py_ - rr_ * 2))), int(min(H2, U(py_ + rr_ * 2)))
-    d2 = ((ux[ya:yb, xa:xb] - px_) ** 2 + (uy[ya:yb, xa:xb] - py_) ** 2) / (rr_ * rr_)
-    bumps[ya:yb, xa:xb] += 1.6 * rr_ / 8.0 * np.exp(-d2 * 1.6)
-bumps *= (1 - clear) * smooth(4, 22, d_in)
-h = h + bumps
+bumps = np.zeros((H2, W2), np.float32)   # v1.0 : texture cornichon en relief retiree, facade lisse
 N = normals(h, PX)
 
 # peinture vert cornichon metallisee : couleur de base + paillettes dorees + leger peau d'orange
-base_col = np.array([46, 82, 33], np.float32)
-dark_col = np.array([26, 50, 22], np.float32)
+base_col = np.array([66, 150, 34], np.float32)     # vert vif metallise, proche de la Swollen Pickle
+dark_col = np.array([38, 98, 22], np.float32)
 # degrade : centre un peu plus clair, bords plus sombres (peinture plus fine sur les aretes)
 cg = np.clip(1 - np.hypot((ux - 380) / 300, (uy - 470) / 520), 0, 1)
 col = dark_col + (base_col - dark_col) * (0.55 + 0.45 * cg)[..., None]
@@ -188,8 +174,8 @@ def text_layer(items):
             x += w_ + sp
     return np.asarray(lay).astype(np.float32) / 255
 
-labels = [('LOUDNESS', (262, 236), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
-          ('SUSTAIN', (498, 236), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
+labels = [('LOUDNESS', (258, 248), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
+          ('SUSTAIN', (502, 248), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
           ('FILTER', (380, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
           ('CRUNCH', (240, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
           ('SCOOP', (520, 418), 'BarlowCondensed-SemiBold.ttf', (17, 1.6)),
@@ -205,10 +191,11 @@ img = img * (1 - ta[..., None]) + inkc * ta[..., None]
 
 # petits ticks de course autour des potards (repere 7 h -> 5 h), encre creme
 tick = Image.new('L', (W2, H2), 0); dt = ImageDraw.Draw(tick)
-for (cx, cy) in KNOBS.values():
+for kname, (cx, cy) in KNOBS.items():
+    KR = KNOB_RS[kname]
     for k in range(11):
         a = math.radians(-150 + 30 * k)
-        r0, r1 = KNOB_R + 6, KNOB_R + (12 if k in (0, 5, 10) else 9)
+        r0, r1 = KR + 6, KR + (12 if k in (0, 5, 10) else 9)
         p0 = (U(cx + r0 * math.sin(a)), U(cy - r0 * math.cos(a))); p1 = (U(cx + r1 * math.sin(a)), U(cy - r1 * math.cos(a)))
         dt.line([p0, p1], fill=255, width=int(U(1.6)))
 tk = np.asarray(tick).astype(np.float32) / 255 * 0.85
@@ -252,9 +239,11 @@ def render_knob(R):
     mask = cv2.resize(mask, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
     return rgb, mask
 
-krgb, kmask = render_knob(KNOB_R)
-kn = krgb.shape[0]
-for (cx, cy) in KNOBS.values():
+_kcache = {}
+for kname, (cx, cy) in KNOBS.items():
+    if KNOB_RS[kname] not in _kcache: _kcache[KNOB_RS[kname]] = render_knob(KNOB_RS[kname])
+    krgb, kmask = _kcache[KNOB_RS[kname]]
+    kn = krgb.shape[0]
     xa, ya = int(round(U(cx) - kn / 2)), int(round(U(cy) - kn / 2))
     # ombre portee (douce) + ombre de contact
     shadow = np.zeros((H2, W2), np.float32)
@@ -343,7 +332,7 @@ TOG_HALF = TS / PX / 2
 out = np.clip(img, 0, 255).astype(np.uint8)
 Image.fromarray(out).save(os.path.join(ROOT, 'background.jpg'), quality=93, subsampling=0)
 
-lay = dict(knobs=[list(KNOBS[k]) for k in ('loudness', 'sustain', 'filter')], knobR=KNOB_R,
+lay = dict(knobs=[list(KNOBS[k]) for k in ('loudness', 'sustain', 'filter')], knobR=[KNOB_RS[k] for k in ('loudness', 'sustain', 'filter')],
            toggles=[list(TOGGLES[k]) for k in ('crunch', 'scoop')], togHalf=TOG_HALF,
            led=list(LED), ledR=LED_R, foot=list(FOOT), footR=FOOT_R, glow=list(GLOW),
            status=list(STATUS), preset=list(PRESET), pedal=list(PEDAL))
@@ -356,7 +345,7 @@ open(os.path.join(ROOT, 'Layout.h'), 'w').write(f"""// genere par tools/make_bac
 namespace layout
 {{
     const juce::Point<float> knobPos[3] = {{ {P(KNOBS['loudness'])}, {P(KNOBS['sustain'])}, {P(KNOBS['filter'])} }};
-    const float knobR = {KNOB_R:.2f}f;
+    const float knobR[3] = {{ {KNOB_RS['loudness']:.2f}f, {KNOB_RS['sustain']:.2f}f, {KNOB_RS['filter']:.2f}f }};
     const juce::Point<float> crunchPos {P(TOGGLES['crunch'])}, scoopPos {P(TOGGLES['scoop'])};
     const float togHalf = {TOG_HALF:.2f}f;
     const juce::Point<float> ledPos {P(LED)}; const float ledR = {LED_R:.2f}f;

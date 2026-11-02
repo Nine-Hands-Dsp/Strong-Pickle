@@ -3,8 +3,8 @@
 #include <juce_graphics/juce_graphics.h>
 namespace layout
 {
-    const juce::Point<float> knobPos[3] = { { 262.00f, 168.00f }, { 498.00f, 168.00f }, { 380.00f, 350.00f } };
-    const float knobR = 46.00f;
+    const juce::Point<float> knobPos[3] = { { 258.00f, 160.00f }, { 502.00f, 160.00f }, { 380.00f, 350.00f } };
+    const float knobR[3] = { 60.00f, 60.00f, 46.00f };
     const juce::Point<float> crunchPos { 240.00f, 352.00f }, scoopPos { 520.00f, 352.00f };
     const float togHalf = 40.75f;
     const juce::Point<float> ledPos { 380.00f, 690.00f }; const float ledR = 7.60f;
