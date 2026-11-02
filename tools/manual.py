@@ -67,7 +67,7 @@ bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548))
 # ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
 a = np.asarray(src).astype(np.float32)
 hsv = cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2HSV)
-green = ((hsv[..., 0] > 35) & (hsv[..., 0] < 85) & (hsv[..., 1] > 90)).astype(np.uint8)
+green = ((hsv[..., 0] > 30) & (hsv[..., 0] < 90) & (hsv[..., 1] > 55) & (hsv[..., 2] > 22)).astype(np.uint8)   # bords ombres du boitier compris
 ys, xs = np.where(green)
 x0, x1, y0, y1 = np.percentile(xs, 0.3), np.percentile(xs, 99.7), np.percentile(ys, 0.3), np.percentile(ys, 99.7)
 msk = np.zeros(green.shape, np.uint8)
@@ -76,10 +76,23 @@ cv2.rectangle(msk, (int(x0) + rr, int(y0)), (int(x1) - rr, int(y1)), 255, -1)
 cv2.rectangle(msk, (int(x0), int(y0) + rr), (int(x1), int(y1) - rr), 255, -1)
 for cx_, cy_ in ((x0 + rr, y0 + rr), (x1 - rr, y0 + rr), (x0 + rr, y1 - rr), (x1 - rr, y1 - rr)):
     cv2.circle(msk, (int(cx_), int(cy_)), rr, 255, -1)
-jy0, jy1 = int(415 * k), int(548 * k)                                  # jacks sur les tranches
-jw = int(36 * k)
-msk[jy0:jy1, int(x0) - jw:int(x0) + 2] = 255
-msk[jy0:jy1, int(x1) - 2:int(x1) + jw] = 255
+# jacks sur les tranches : seulement les pixels du metal (le fond gris du visuel autour est retire, pas de rectangle)
+jy0, jy1 = int(405 * k), int(565 * k)
+jw = int(40 * k)
+lum_ = a.mean(-1)
+for xa_, xb_, bgx in ((int(x0) - jw, int(x0) + 2, int(x0) - jw - int(12 * k)), (int(x1) - 2, int(x1) + jw, int(x1) + jw + int(4 * k))):
+    reg_ = lum_[jy0:jy1, xa_:xb_]
+    bg_ = np.median(lum_[jy0:jy1, bgx:bgx + int(8 * k)], axis=1, keepdims=True)
+    jm = (np.abs(reg_ - bg_) > 14).astype(np.uint8)
+    jm = cv2.morphologyEx(jm, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+    jm = cv2.morphologyEx(jm, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    n_, lab_, st_, _ = cv2.connectedComponentsWithStats(jm, 8)
+    if n_ > 1:
+        jm = (lab_ == 1 + np.argmax(st_[1:, 4])).astype(np.uint8)
+    pts_ = cv2.findNonZero(jm)
+    if pts_ is not None:                                       # contour net : enveloppe convexe de l'embase
+        jm = np.zeros_like(jm); cv2.fillConvexPoly(jm, cv2.convexHull(pts_), 1)
+    msk[jy0:jy1, xa_:xb_] = np.maximum(msk[jy0:jy1, xa_:xb_], jm * 255)
 msk = cv2.GaussianBlur(msk, (0, 0), 1.0)
 cut = Image.new("RGBA", src.size, (0, 0, 0, 0)); cut.paste(src, (0, 0), Image.fromarray(msk))
 cut = cut.crop(cut.getbbox())
