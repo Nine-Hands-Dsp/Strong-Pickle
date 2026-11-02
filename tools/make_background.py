@@ -233,6 +233,47 @@ strip = np.concatenate(frames, axis=0)
 Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
 # ------------------------------------------------------------------ 6a. graduations, ombres des inverseurs, bague OCTAVE (v1.4.1)
+# FUZZ un peu plus gros (v1.4.1, demande) : le mot du visuel est efface (peinture refaite) et redessine 35 % plus grand,
+# meme police condensee espacee que STRONG, meme creme, meme centre (2 px plus bas pour garder l'air sous PICKLE).
+import sys as _sys
+_sys.path.insert(0, HERE)
+from label_font import render as _render_label
+FZ_C = (455.0 * S2, 783.5 * S2)                     # centre du mot dans le fond (px)
+fx0, fx1, fy0, fy1 = int(FZ_C[0] - 70), int(FZ_C[0] + 70), int(FZ_C[1] - 17), int(FZ_C[1] + 22)
+regf = img[fy0:fy1, fx0:fx1]
+crf = ((regf.mean(-1) > 105) & ((regf.max(-1) - regf.min(-1)) < 95)).astype(np.uint8)
+crf = cv2.dilate(crf, np.ones((5, 5), np.uint8))
+src_f = img[fy0:fy1, fx0 + 150:fx1 + 150]                      # peinture propre a droite (meme hauteur)
+lowf_ = cv2.inpaint(np.clip(cv2.GaussianBlur(regf, (0, 0), 3.0), 0, 255).astype(np.uint8), crf, 8, cv2.INPAINT_TELEA).astype(np.float32)
+hpf = src_f - cv2.GaussianBlur(src_f, (0, 0), 2.0)
+wf = cv2.GaussianBlur(crf.astype(np.float32), (0, 0), 1.2)[..., None]
+regf[:] = regf * (1 - wf) + (lowf_ + hpf) * wf
+FZ_CAP = 21.0 * 1.35
+labf = _render_label('FUZZ', 'BarlowCondensed-SemiBold.ttf', FZ_CAP, FZ_CAP * 0.62).astype(np.float32) / 255.0
+labf = cv2.GaussianBlur(labf, (0, 0), 0.5)
+lh, lw = labf.shape
+ly0, lx0 = int(round(FZ_C[1] + 2 - lh / 2.0)), int(round(FZ_C[0] - lw / 2.0))
+regl = img[ly0:ly0 + lh, lx0:lx0 + lw]
+grl = regl - cv2.GaussianBlur(regl, (0, 0), 2.5)
+inkf = np.array([200, 214, 182], np.float32)
+regl[:] = regl * (1 - 0.95 * labf[..., None]) + (inkf + 0.3 * grl) * (0.95 * labf[..., None])
+print('FUZZ :', (lx0, ly0, lw, lh))
+
+# etiquettes des commandes plus lisibles (v1.4.1) : les lettres sont eclaircies vers la creme des etiquettes
+# (SUSTAIN est dans l'ombre du potard) ; contour des lettres garde, la peinture autour n'est pas touchee
+_lr = ((img[..., 0] > 100) & ((img[..., 1] - img[..., 0]) < 45) & ((img[..., 0] - img[..., 2]) > 8)).astype(np.uint8)
+_lr = cv2.morphologyEx(_lr, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+_wd = cv2.morphologyEx(_lr, cv2.MORPH_CLOSE, np.ones((5, 21), np.uint8))
+_n, _lab, _st, _ = cv2.connectedComponentsWithStats(_wd, 8)
+_lum = img.mean(-1)
+for i in range(1, _n):
+    x_, y_, w_, h_, a_ = _st[i]
+    if 14 <= h_ <= 34 and 40 <= w_ <= 200 and a_ > 150 and y_ < 1000:          # etiquettes des potards et inverseurs
+        sl = (slice(y_ - 3, y_ + h_ + 3), slice(x_ - 3, x_ + w_ + 3))
+        reg = img[sl]; lm = _lum[sl]
+        bgl = np.percentile(lm, 20); fgl = np.percentile(lm, 97)
+        t_ = np.clip((lm - bgl) / max(fgl - bgl, 1.0), 0, 1)[..., None]        # couverture de la lettre (antialiasing garde)
+        reg[:] = reg + t_ * (np.array([214, 222, 190], np.float32) - reg) * 0.55
 # graduations des potards : 11 traits tous les 30 degres (7 h -> 5 h), de 1,11 a 1,235 fois le rayon du moletage
 # (mesures sur le visuel), redessines nets et plus visibles, encre creme, petite ombre portee.
 TICK_IN, TICK_OUT = 1.11, 1.235
@@ -262,23 +303,27 @@ OCTU = (U(OCT_V[0]), U(OCT_V[1]))
 RR = U(TOG_RING) * PX + 1.0                          # rayon exterieur de la bague chromee (px du fond)
 TOGS_PX = [(U(cx) * PX, U(cy) * PX) for cx, cy in TOGGLES]
 def _clean_toggle(cx, cy):
-    n = 110; x0, y0 = int(round(cx)) - n, int(round(cy)) - n
+    n = 150; x0, y0 = int(round(cx)) - n, int(round(cy)) - n
     reg = img[y0:y0 + 2 * n, x0:x0 + 2 * n]
     yy_, xx_ = np.mgrid[0:2 * n, 0:2 * n].astype(np.float32)
     dx, dy = xx_ + x0 + 0.5 - cx, yy_ + y0 + 0.5 - cy
     rr_ = np.hypot(dx, dy)
-    zone = (rr_ >= RR - 0.5) & (rr_ < RR + 34)
-    low = cv2.GaussianBlur(reg, (0, 0), 5.0)
-    low8 = np.clip(low, 0, 255).astype(np.uint8)
-    hole_ = (rr_ < RR + 38).astype(np.uint8)                                   # rempli depuis la peinture exterieure seulement
+    ZR = RR + 84                                                               # le halo du visuel va jusque la (en bas a droite)
+    lab_ = cv2.dilate(((reg[..., 0] > 105) & ((reg[..., 1] - reg[..., 0]) < 45)).astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
+    zone = (rr_ >= RR + 2.5) & (rr_ < ZR) & ~lab_                              # les etiquettes ne sont pas touchees
+    labw_ = cv2.dilate(lab_.astype(np.uint8), np.ones((15, 15), np.uint8))           # lettres + marge
+    reg_nl = cv2.inpaint(np.clip(reg, 0, 255).astype(np.uint8), labw_, 6, cv2.INPAINT_TELEA).astype(np.float32)
+    low8 = np.clip(cv2.GaussianBlur(reg_nl, (0, 0), 5.0), 0, 255).astype(np.uint8)   # basse frequence sans les lettres
+    hole_ = (rr_ < ZR + 4).astype(np.uint8)                                          # rempli depuis la peinture exterieure
     lowf = cv2.inpaint(low8, hole_, 14, cv2.INPAINT_TELEA).astype(np.float32)
-    hp = reg - cv2.GaussianBlur(reg, (0, 0), 2.0)
-    k_ = (rr_ + 40.0) / np.maximum(rr_, 1e-3)                               # meme angle, 40 px plus loin
-    gx_ = np.clip(cx + dx * k_ - x0 - 0.5, 0, 2 * n - 1).astype(np.float32); gy_ = np.clip(cy + dy * k_ - y0 - 0.5, 0, 2 * n - 1).astype(np.float32)
-    hps = cv2.remap(hp, gx_, gy_, cv2.INTER_LINEAR)
+    hps = GRAIN_T[:2 * n, :2 * n]                                              # grain de peinture propre (pave)
     fill = lowf + hps
-    w_ = np.clip((RR + 34 - rr_) / 8.0, 0, 1) * (rr_ >= RR - 0.5)
+    w_ = cv2.GaussianBlur((np.clip((ZR - rr_) / 10.0, 0, 1) * zone).astype(np.float32), (0, 0), 1.5) * np.clip((rr_ - RR - 1.0) / 2.0, 0, 1)
     reg[:] = reg * (1 - w_[..., None]) + fill * w_[..., None]
+_gp = img[int(280 * PX) - 32:int(280 * PX) + 32, int(190 * PX) - 32:int(190 * PX) + 32]   # peinture propre sous LOUDNESS, a gauche
+_gp = _gp - cv2.GaussianBlur(_gp, (0, 0), 2.0)
+_t = np.concatenate([_gp, _gp[:, ::-1]], 1); _t = np.concatenate([_t, _t[::-1]], 0)       # pave sans raccord (miroirs)
+GRAIN_T = np.tile(_t, (3, 3, 1))
 for cx, cy in TOGS_PX: _clean_toggle(cx, cy)
 def _copy_ring(sx_, sy_, tx_, ty_):
     n = int(RR) + 4
@@ -334,8 +379,19 @@ if os.path.exists(MOTIF):
     # le mot PICKLE (il s'allume) : le trait passe derriere, jamais entre les lettres
     _bx, _by, _bw, _bh = 340.0 - 8, 706.0 - 4, 236.0 + 16, 64.0 + 8
     keep *= 1 - ((xxb > U(_bx) * PX) & (xxb < U(_bx + _bw) * PX) & (yyb > U(_by) * PX) & (yyb < U(_by + _bh) * PX)).astype(np.float32)
+    # etiquettes (LOUDNESS, SUSTAIN, CRUNCH, FILTER, SCOOP, FAT...) : espace net autour, le trait passe derriere
+    crl = ((img_pre_motif[..., 0] > 105) & ((img_pre_motif[..., 1] - img_pre_motif[..., 0]) < 45)
+           & ((img_pre_motif[..., 0] - img_pre_motif[..., 2]) > 8)).astype(np.uint8)
+    crl = cv2.morphologyEx(crl, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    words = cv2.morphologyEx(crl, cv2.MORPH_CLOSE, np.ones((5, 21), np.uint8))
+    nw_, labw, stw, _ = cv2.connectedComponentsWithStats(words, 8)
+    for i in range(1, nw_):
+        x_, y_, w_, h_, a_ = stw[i]
+        if 14 <= h_ <= 34 and 40 <= w_ <= 200 and a_ > 150:
+            exm = 12
+            keep *= 1 - cv2.GaussianBlur(((xxb > x_ - exm) & (xxb < x_ + w_ + exm) & (yyb > y_ - exm + 2) & (yyb < y_ + h_ + exm - 2)).astype(np.float32), (0, 0), 3.0)
     # STRONG et FUZZ : le trait passe derriere les mots (pas entre les lettres)
-    for (wy0, wy1) in ((676.0, 708.0), (764.0, 792.0)):
+    for (wy0, wy1) in ((676.0, 708.0), (766.0, 800.0)):
         y0w, y1w = int(U(wy0) * PX), int(U(wy1) * PX); x0w, x1w = int(U(320) * PX), int(U(600) * PX)
         crw = ((img[y0w:y1w, x0w:x1w, 0] > 105) & ((img[y0w:y1w, x0w:x1w, 1] - img[y0w:y1w, x0w:x1w, 0]) < 45)).astype(np.uint8)
         crw = cv2.morphologyEx(crw, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
@@ -347,7 +403,14 @@ if os.path.exists(MOTIF):
     _cr = ((img[..., 0] > 105) & ((img[..., 1] - img[..., 0]) < 45) & ((img[..., 0] - img[..., 2]) > 8)).astype(np.uint8)
     _cr = cv2.morphologyEx(_cr, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
     keep *= 1 - cv2.GaussianBlur(cv2.dilate(_cr, np.ones((7, 7), np.uint8)).astype(np.float32), (0, 0), 1.2)
-    al *= keep
+    # petits morceaux du dessin coupes par une zone reservee (flocons, petits traits) : retires en entier plutot que
+    # tronques a plat (sinon ils font des barres sous les mots ou autour des potards)
+    n0, lab0, st0, _ = cv2.connectedComponentsWithStats((al > 0.4).astype(np.uint8), 8)
+    kept = np.bincount(lab0.ravel(), weights=(keep > 0.5).ravel().astype(np.float64), minlength=n0)
+    frac = kept / np.maximum(st0[:, 4], 1)
+    drop = np.zeros(n0, bool); drop[1:] = (frac[1:] < 0.97) & (st0[1:, 4] < 900)
+    dropm = cv2.dilate(drop[lab0].astype(np.uint8), np.ones((5, 5), np.uint8)).astype(np.float32)
+    al *= keep * (1 - dropm)
     n_, lab_, st_, _ = cv2.connectedComponentsWithStats((al > 0.5).astype(np.uint8), 8)
     small = np.zeros(n_, bool); small[1:] = st_[1:, 4] < 10                  # poussieres isolees
     al *= ~cv2.dilate(small[lab_].astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
