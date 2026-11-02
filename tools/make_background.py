@@ -249,17 +249,17 @@ base = img[py0:py0 + ph, px0:px0 + pw]
 # coeur des lettres : vert lumineux, plus clair au centre des traits (distance au bord)
 dist = cv2.distanceTransform((m > 0.5).astype(np.uint8), cv2.DIST_L2, 3)
 core = np.clip(dist / 5.0, 0, 1)[..., None]
-green_edge = np.array([70, 235, 60], np.float32); green_core = np.array([215, 255, 190], np.float32)
+green_edge = np.array([60, 185, 52], np.float32); green_core = np.array([150, 225, 125], np.float32)   # v1.0 : moins brillant (demande)
 letter_rgb = green_edge + (green_core - green_edge) * core
 halo1 = cv2.GaussianBlur(m, (0, 0), 3.0)
 halo2 = cv2.GaussianBlur(m, (0, 0), 14.0)
 glowc = np.array([80, 255, 60], np.float32)
-lit = base * (1 + (0.9 * halo1 + 1.6 * halo2)[..., None] * np.array([0.25, 1.0, 0.2], np.float32)) \
-      + (0.55 * halo1)[..., None] * glowc
+lit = base * (1 + (0.40 * halo1 + 0.55 * halo2)[..., None] * np.array([0.25, 1.0, 0.2], np.float32)) \
+      + (0.22 * halo1)[..., None] * glowc
 lit = lit * (1 - m[..., None]) + letter_rgb * m[..., None]
 lit = np.clip(lit, 0, 255)
 add = np.abs(lit - base).max(-1)
-a = np.clip(np.maximum(m, add / 45.0), 0, 1)
+a = np.clip(np.maximum(m, add / 60.0), 0, 1)
 srcp = np.where(a[..., None] > 1e-3, base + (lit - base) / np.maximum(a[..., None], 1e-3), base)
 pk = np.dstack([np.clip(srcp, 0, 255), a[..., None] * 255]).astype(np.uint8)
 Image.fromarray(pk, 'RGBA').save(os.path.join(ROOT, 'pickle_glow.png'))
