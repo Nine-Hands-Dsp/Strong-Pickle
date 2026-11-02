@@ -18,14 +18,14 @@ Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Stud
 
 | Élément | Swollen Pickle MkIII | Dans Strong Pickle |
 |---|---|---|
-| Circuit | Big Muff modifié : étage d'entrée, deux étages d'écrêtage à diodes, tone stack passif, étage de sortie | Même chaîne, modélisée étage par étage, écrêtage sur-échantillonné x4 |
-| SUSTAIN | Quantité de fuzz ; gain total 18 à 62 dB (fiche Way Huge) ; fuzz lisse vers 8 – 10 h, crachotements vers midi, mur de fuzz au-delà | 18 → 62 dB mesurés en petits signaux (`tests/test_dsp.cpp`) ; le gain monte vite en début de course ; la charge du condensateur de liaison par la jonction base-émetteur décale la polarisation (crachotements et « bloom » de l'attaque, maximum vers midi) |
-| LOUDNESS | Volume de sortie, réserve énorme | Courbe audio, 0 = coupé, midi ≈ niveau du bypass, +12 dB en haut de course (limiteur de sécurité à 0 dBFS) |
-| FILTER | Du sombre / gras au brillant / fin (tone stack passe-bas / passe-haut) | Mélange passe-bas 470 Hz / passe-haut 1,15 kHz, creux de médiums au centre ; à gauche le grave gonfle, à droite il s'amincit et le grain ressort |
-| SCOOP (inverseur) | Creuse les médiums | Bas = voix classique (creux léger) ; haut = creux d'environ −8 dB vers 760 Hz (filtre à midi) |
-| CRUNCH (inverseur) | Change l'intensité de la compression | Bas = classique : diodes franches, fuzz lisse et compressée ; haut = diodes freinées (résistance série) : l'étage va jusqu'à ses rails, fuzz plus ouverte et granuleuse, ~ +5 dB |
+| Circuit | Big Muff modifié : étage d'entrée, deux étages d'écrêtage à diodes, tone stack passif, étage de sortie | **v1.1 : modèle composant par composant** (`PickleCircuit.h`), résolu à chaque échantillon (Newton, sur-échantillonnage x4) : transistors 2N3904 (Ebers-Moll), diodes 1N914 en série avec 1 µF, Miller 470 pF, contre-réaction 470 k, liaisons 220 / 150 nF sur 10 k (grave réduit avant l'écrêtage : fuzz définie, pas de bave) |
+| SUSTAIN | Quantité de fuzz ; gain total 18 à 62 dB (fiche Way Huge) | Diviseur entre l'étage d'entrée et le 1er étage d'écrêtage : 18 → 62 dB mesurés en petits signaux (`tests/test_dsp.cpp`) ; le niveau suit le jeu, pas de pompage |
+| LOUDNESS | Volume de sortie, réserve énorme | Courbe audio, 0 = coupé, midi ≈ +4,5 dB au-dessus du bypass, +12 dB en haut de course (limiteur de sécurité à 0 dBFS) |
+| FILTER | Du sombre / gras au brillant / fin | Tone stack passif aux valeurs Big Muff : 39 k / 10 nF (passe-bas), 4 nF / 22 k (passe-haut), pot 100 k |
+| SCOOP (inverseur) | Creuse les médiums | Bas = voix classique (creux ≈ −5 dB vers 800 Hz) ; haut = valeurs écartées 22 nF / 2,2 nF, creux ≈ −12 dB |
+| CRUNCH (inverseur) | Change l'intensité de la compression | Bas = diodes directes (fuzz dense, compressée) ; haut = 8,2 k en série avec les diodes : fuzz plus ouverte, granuleuse et dynamique, +2 à 3 dB |
 | Les deux inverseurs en bas | La Swollen Pickle « trois potards » classique | Preset 1 *Classic Pickle* |
-| Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons à 18 – 22 Hz + bosse de 2,5 dB à 95 Hz |
+| Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons 220 / 150 nF (au lieu de 100 nF) : grave plein mais serré |
 | Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour ; le mot **PICKLE** s'allume en vert quand l'effet est actif (même fondu) |
 | Noise gate (ajout) | — | Clic droit > *Noise gate* : Off (défaut, comme la pédale) / Light / Medium / Strong |
 
@@ -70,7 +70,7 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 
 ## Fichiers
 
-- `PickleDSP.h` : moteur audio (sans JUCE, testé par `tests/test_dsp.cpp`).
+- `PickleDSP.h` : moteur audio (sans JUCE, testé par `tests/test_dsp.cpp`) ; `PickleCircuit.h` : étages à transistor et tone stack au niveau des composants.
 - `PluginProcessor.*`, `PluginEditor.*` : plugin JUCE 8.0.15.
 - `background.jpg`, `toggle_strip.png`, `glow_yellow.png`, `Poppins-Medium.ttf` : visuel intégré.
 - `tools/make_background.py` : prépare le fond à partir du visuel fourni (repères des potards et leviers effacés, LED jaune éteinte, écran et barre de presets vidés), rend les leviers des inverseurs, calcule le calque de la LED et écrit `Layout.h` ; `tools/make_background_v0.py` : premier design (abandonné).

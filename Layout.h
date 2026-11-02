@@ -10,7 +10,7 @@ namespace layout
     const juce::Point<float> ledPos { 379.58f, 685.83f }; const float ledR = 6.60f;
     const juce::Point<float> footPos { 376.67f, 796.67f }; const float footR = 45.00f;
     const juce::Rectangle<float> glowRect { 251.58f, 557.83f, 256.00f, 256.00f };
-    const juce::Rectangle<float> pickleRect { 257.33f, 562.33f, 248.67f, 105.33f };    // calque « PICKLE » allume (vert)
+    const juce::Rectangle<float> pickleRect { 261.50f, 566.50f, 240.00f, 96.50f };    // calque « PICKLE » allume (vert)
     const juce::Rectangle<float> statusRect { 195.00f, 454.17f, 371.67f, 47.50f };
     const juce::Rectangle<float> presetRect { 185.00f, 510.00f, 390.83f, 32.50f };
 }

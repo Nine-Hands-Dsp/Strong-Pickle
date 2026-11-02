@@ -236,15 +236,21 @@ Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 PK_BOX = (340.0, 706.0, 236.0, 64.0)              # zone du mot dans le visuel (px)
 bx, by, bw, bh = PK_BOX
 gA = A.mean(-1); sA = A.max(-1) - A.min(-1)
-letters = np.zeros((H, W), np.float32)
-sel = (XX >= bx) & (XX < bx + bw) & (YY >= by) & (YY < by + bh)
-letters[sel] = np.clip((gA[sel] - 105) / 70.0, 0, 1) * (sA[sel] < 80)
-lb = cv2.resize(letters, (W2, H2), interpolation=cv2.INTER_LINEAR)
-lb = np.clip(cv2.GaussianBlur(lb, (0, 0), 0.7) * 1.15, 0, 1)
-PKU = (U(bx) - 26.0, U(by) - 26.0, U(bw) + 52.0, U(bh) + 52.0)    # rectangle du calque (unites)
-px0, py0 = int(PKU[0] * PX), int(PKU[1] * PX)
-pw, ph = int(PKU[2] * PX), int(PKU[3] * PX)
-m = lb[py0:py0 + ph, px0:px0 + pw]
+# v1.1 : masque des lettres pris sur le fond final lui-meme (meme agrandissement, meme accentuation) :
+# les lettres allumees recouvrent exactement les lettres eteintes, sans decalage ni liseré creme.
+px0, py0 = int(round(U(bx - 26) * PX)), int(round(U(by - 26) * PX))      # coin du calque sur un pixel entier
+pw, ph = int(round(U(bw + 52) * PX)), int(round(U(bh + 52) * PX))
+PKU = (px0 / PX, py0 / PX, pw / PX, ph / PX)                               # rectangle du calque (unites)
+reg_ = img[py0:py0 + ph, px0:px0 + pw]
+lum_ = reg_.mean(-1); sat_ = reg_.max(-1) - reg_.min(-1)
+yy_, xx_ = np.mgrid[0:ph, 0:pw]
+inside_ = (xx_ >= (U(bx) * PX - px0)) & (xx_ < (U(bx + bw) * PX - px0)) & (yy_ >= (U(by) * PX - py0)) & (yy_ < (U(by + bh) * PX - py0))
+m = (np.clip((lum_ - 95) / 75.0, 0, 1) * np.clip((95 - sat_) / 30.0, 0, 1) * inside_).astype(np.float32)
+_n, _lab, _st, _ = cv2.connectedComponentsWithStats((m > 0.3).astype(np.uint8), 8)
+_keep = np.zeros(_n, bool); _keep[1:] = _st[1:, 4] >= 120                  # seulement les lettres (pas les paillettes)
+m = m * cv2.dilate(_keep[_lab].astype(np.uint8), np.ones((5, 5), np.uint8)).astype(np.float32)
+# couverture : le contour antialiasé des lettres creme est recouvert (1 px de plus) pour ne laisser aucun liseré
+m = np.maximum(m, cv2.dilate((m > 0.25).astype(np.float32), np.ones((3, 3), np.uint8)) * 0.85)
 base = img[py0:py0 + ph, px0:px0 + pw]
 # coeur des lettres : vert lumineux, plus clair au centre des traits (distance au bord)
 dist = cv2.distanceTransform((m > 0.5).astype(np.uint8), cv2.DIST_L2, 3)

@@ -51,7 +51,11 @@ static double sineGain (Params p, double f, float amp)
     std::vector<float> in ((size_t) (SR * 0.6));
     for (size_t i = 0; i < in.size(); ++i) in[i] = amp * (float) std::sin (2 * pi * f * i / SR);
     auto o = run (p, in);
-    return rmsDb (o, in.size() / 2, in.size()) - rmsDb (in, in.size() / 2, in.size());
+    // composante a la frequence du test (correlation) : insensible au bruit et a la derive lente
+    double cs = 0, sn = 0; size_t a = in.size() / 2;
+    for (size_t i = a; i < in.size(); ++i) { const double ph = 2 * pi * f * (double) i / SR; cs += o[i] * std::cos (ph); sn += o[i] * std::sin (ph); }
+    const double ampOut = 2.0 * std::sqrt (cs * cs + sn * sn) / (double) (in.size() - a);
+    return 20 * std::log10 (ampOut / amp + 1e-30);
 }
 
 int main()
@@ -59,10 +63,10 @@ int main()
     Params p;
     // 1. gain petits signaux (1 kHz, -110 dBV) : SUSTAIN 0 -> 10 doit couvrir ~44 dB (18 -> 62 dB)
     p.loudness = 5; p.filter = 5;
-    p.sustain = 0;  double g0 = sineGain (p, 1000, 0.000003f);
-    p.sustain = 10; double g10 = sineGain (p, 1000, 0.000003f);
+    p.sustain = 0;  double g0 = sineGain (p, 1000, 0.00003f);
+    p.sustain = 10; double g10 = sineGain (p, 1000, 0.00003f);
     printf ("petits signaux : sustain 0 = %.1f dB, sustain 10 = %.1f dB, ecart %.1f dB (cible 44)\n", g0, g10, g10 - g0);
-    for (float s : { 2.5f, 5.0f, 7.5f }) { p.sustain = s; printf ("   sustain %.1f : %.1f dB\n", s, sineGain (p, 1000, 0.000003f)); }
+    for (float s : { 2.5f, 5.0f, 7.5f }) { p.sustain = s; printf ("   sustain %.1f : %.1f dB\n", s, sineGain (p, 1000, 0.00003f)); }
 
     // 2. niveau avec une guitare (accord, crete 0,3) : loudness midi ~ niveau du bypass
     auto g = guitar (3.0);
@@ -83,7 +87,7 @@ int main()
         {
             Params q; q.sustain = 0; q.filter = f; q.scoop = sc; q.loudness = 5;
             printf ("  scoop %d filter %4.1f : 100 Hz %+5.1f  400 Hz %+5.1f  800 Hz %+5.1f  2 kHz %+5.1f  5 kHz %+5.1f\n", sc, f,
-                    sineGain (q, 100, 0.000003f), sineGain (q, 400, 0.000003f), sineGain (q, 800, 0.000003f), sineGain (q, 2000, 0.000003f), sineGain (q, 5000, 0.000003f));
+                    sineGain (q, 100, 0.00003f), sineGain (q, 400, 0.00003f), sineGain (q, 800, 0.00003f), sineGain (q, 2000, 0.00003f), sineGain (q, 5000, 0.00003f));
         }
     // 4. bypass : sortie == entree retardee
     {
