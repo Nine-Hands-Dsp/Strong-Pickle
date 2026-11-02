@@ -415,11 +415,13 @@ def _label(text, cx, cy, cap):
     grain = reg9 - cv2.GaussianBlur(reg9, (0, 0), 3.0)               # grain de la peinture garde dans les lettres
     reg9[:] = reg9 * (1 - 0.95 * lab[..., None]) + (inkc + 0.35 * grain) * (0.95 * lab[..., None])
     return (lx0, ly0, lw, lh)
-print('etiquettes', _label('OCTAVE', tx, ty + (849.0 - sy), 24.5), _label('FAT', tx, ty - 70, 18.0), _label('BRIGHT', tx, ty + 70, 18.0))
-# petite LED d'octave (verte, eteinte dans le fond ; le plugin l'allume quand l'octave est en service) sous OCTAVE
-OCT_LED_R = 4.4
-OCTLEDU = (tx / PX, (ty + 196.0) / PX)
-orgb, om = render_led(OCT_LED_R, base=(20, 44, 16), hi=(40, 80, 34)); on_ = orgb.shape[0]
+# v1.4.1 : OCTAVE a droite de l'inverseur, LED d'octave (jaune, taille de la LED principale) a gauche
+_lw = _render_label('OCTAVE', 'BarlowCondensed-Bold.ttf', 24.5, 24.5 * 0.13).shape[1]
+print('etiquettes', _label('OCTAVE', tx + 62 + _lw / 2.0, ty, 24.5), _label('FAT', tx, ty - 70, 18.0), _label('BRIGHT', tx, ty + 70, 18.0))
+# LED d'octave (jaune, eteinte dans le fond ; le plugin l'allume quand l'octave est en service), a gauche du levier
+OCT_LED_R = LED_R
+OCTLEDU = ((tx - 88.0) / PX, ty / PX)
+orgb, om = render_led(OCT_LED_R); on_ = orgb.shape[0]
 oxa, oya = int(round(OCTLEDU[0] * PX - on_ / 2)), int(round(OCTLEDU[1] * PX - on_ / 2))
 osh = np.zeros(img.shape[:2], np.float32); osh[oya + 2:oya + 2 + on_, oxa + 2:oxa + 2 + on_] = om
 img *= (1 - 0.45 * cv2.GaussianBlur(osh, (0, 0), 2.5)[..., None])

@@ -14,9 +14,9 @@ namespace
     const float togHalf = layout::togHalf;
     const Point<float> ledPos = layout::ledPos;
     const float ledR = layout::ledR;
-    const Point<float> octLedPos = layout::octLedPos;      // petite LED d'octave (verte), sous OCTAVE
+    const Point<float> octLedPos = layout::octLedPos;      // LED d'octave (jaune), a gauche de l'inverseur OCTAVE
     const float octLedR = layout::octLedR;
-    const Colour octCore (0xffeaffd6), octMid (0xff5fe23e), octDeep (0xff1d6512);
+    const Colour octCore (0xfffff8d8), octMid (0xffffc21a), octDeep (0xff8a5600);   // meme jaune que la LED principale
     const Rectangle<float> glowRect = layout::glowRect;
     const Rectangle<float> pickleRect = layout::pickleRect;    // « PICKLE » s'allume en vert avec l'effet
     const Point<float> footPos = layout::footPos;
@@ -489,7 +489,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (octLedLevel - drawnOctLed) > 0.004f)
     {
         drawnOctLed = octLedLevel;
-        const float hr = octLedR * 4.0f;
+        const float hr = octLedR * 4.2f;
         askRepaint (scaled ({ octLedPos.x - hr, octLedPos.y - hr, hr * 2.0f, hr * 2.0f }).expanded (2));
     }
 
@@ -548,9 +548,10 @@ void PickleAudioProcessorEditor::drawOctLed (Graphics& g)
     const float level = octLedLevel;
     if (level <= 0.003f) return;
     const auto c = octLedPos; const float r = octLedR;
-    ColourGradient halo (octMid.withAlpha (0.30f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 3.8f, c.y, true);
+    ColourGradient halo (octMid.withAlpha (0.26f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 4.0f, c.y, true);
+    halo.addColour (0.35, octMid.withAlpha (0.10f * level));
     g.setGradientFill (halo);
-    g.fillEllipse (c.x - r * 3.8f, c.y - r * 3.8f, r * 7.6f, r * 7.6f);
+    g.fillEllipse (c.x - r * 4.0f, c.y - r * 4.0f, r * 8.0f, r * 8.0f);
     ColourGradient body (octCore.withAlpha (level), c.x - r * 0.10f, c.y - r * 0.12f,
                          octDeep.withAlpha (level), c.x + r * 1.05f, c.y + r * 0.2f, true);
     body.addColour (0.30, octCore.interpolatedWith (octMid, 0.55f).withAlpha (level));
