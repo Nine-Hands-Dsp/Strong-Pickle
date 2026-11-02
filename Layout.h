@@ -5,7 +5,8 @@ namespace layout
 {
     const juce::Point<float> knobPos[3] = { { 255.83f, 161.67f }, { 501.67f, 160.00f }, { 380.00f, 353.33f } };
     const float knobR[3] = { 59.17f, 59.17f, 48.33f };      // rayon du moletage
-    const juce::Point<float> crunchPos { 237.92f, 357.08f }, scoopPos { 521.67f, 356.67f }, octavePos { 521.67f, 780.00f };
+    const juce::Point<float> crunchPos { 237.92f, 357.08f }, scoopPos { 521.67f, 356.67f }, octavePos { 521.67f, 685.83f };
+    const juce::Point<float> octLedPos { 521.67f, 783.83f }; const float octLedR = 4.40f;   // LED d'octave
     const float togHalf = 26.00f;
     const juce::Point<float> ledPos { 379.58f, 685.83f }; const float ledR = 6.60f;
     const juce::Point<float> footPos { 376.67f, 796.67f }; const float footR = 45.00f;

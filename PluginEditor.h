@@ -111,6 +111,7 @@ private:
     juce::String buildStatusLine() const;
     juce::String buildPresetLine() const;
     void drawLed (juce::Graphics&);
+    void drawOctLed (juce::Graphics&);
     void drawStatus (juce::Graphics&);
     void drawPresetBar (juce::Graphics&);
 
@@ -135,6 +136,7 @@ private:
     FootSwitchArea footswitch;
 
     float ledLevel = 0.0f, drawnLed = -1.0f;
+    float octLedLevel = 0.0f, drawnOctLed = -1.0f;
     int lastChanged = -1;
     float statusAlpha = 0.0f, drawnStatus = -1.0f;
     double statusUntil = 0.0;

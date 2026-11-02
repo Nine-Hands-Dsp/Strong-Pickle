@@ -133,21 +133,21 @@ def normals(h, s):
 
 # LED eteinte : bague chromee fine (comme le visuel) + lentille jaune sombre
 LED_R = 6.6                                        # rayon de la lentille (unites)
-def render_led():
-    R = LED_R * 1.42; SS = 3; k = PX * SS
+def render_led(LR=LED_R, base=(58, 44, 12), hi=(80, 66, 30)):
+    R = LR * 1.42; SS = 3; k = PX * SS
     n = int(math.ceil((R * 2 + 8) * k))
     yk, xk = np.mgrid[0:n, 0:n].astype(np.float32)
     lx_, ly_ = (xk + 0.5) / k - n / k / 2, (yk + 0.5) / k - n / k / 2
     rr = np.hypot(lx_, ly_)
-    hk = np.where(rr < LED_R, 1.8 + 1.6 * np.sqrt(np.clip(1 - (rr / LED_R) ** 2, 0, 1)), 0)
-    ring = (rr >= LED_R) & (rr < R)
-    hk = np.where(ring, 2.6 * np.sin(np.clip((rr - LED_R) / (R - LED_R), 0, 1) * math.pi), hk)
+    hk = np.where(rr < LR, 1.8 + 1.6 * np.sqrt(np.clip(1 - (rr / LR) ** 2, 0, 1)), 0)
+    ring = (rr >= LR) & (rr < R)
+    hk = np.where(ring, 2.6 * np.sin(np.clip((rr - LR) / (R - LR), 0, 1) * math.pi), hk)
     Nk = normals(hk, k)
     ndl = np.clip((Nk * L).sum(-1), 0, 1); ndh = np.clip((Nk * HV).sum(-1), 0, 1)
     chrome = 60 + 150 * ndl ** 2 + 255 * ndh ** 50
-    lens = np.dstack([58 + 80 * ndh ** 30, 44 + 66 * ndh ** 30, 12 + 30 * ndh ** 30]) + 230 * (ndh ** 500)[..., None]
+    lens = np.dstack([base[0] + hi[0] * ndh ** 30, base[1] + hi[1] * ndh ** 30, base[2] + hi[2] * ndh ** 30]) + 230 * (ndh ** 500)[..., None]
     rgb = np.where(ring[..., None], np.dstack([chrome, chrome, chrome * 0.98]), lens)
-    gorge = (rr >= LED_R - 0.7) & (rr < LED_R + 0.3)
+    gorge = (rr >= LR - 0.7) & (rr < LR + 0.3)
     rgb = np.where(gorge[..., None], rgb * 0.3, rgb)
     m = (rr < R).astype(np.float32)
     rgb = cv2.resize(rgb, (n // SS, n // SS), interpolation=cv2.INTER_AREA)
@@ -387,7 +387,7 @@ img[JY0:JY1] = out
 import sys as _sys
 _sys.path.insert(0, HERE)
 from label_font import render as _render_label
-OCT_V = (TOGGLES[1][0], 936.0)                     # position dans le visuel (px) : x de SCOOP, entre footswitch et bord
+OCT_V = (TOGGLES[1][0], LED[1])                    # v1.4.1 : x de SCOOP, a la hauteur de la LED
 sx, sy = U(TOGGLES[1][0]) * PX, U(TOGGLES[1][1]) * PX
 tx, ty = U(OCT_V[0]) * PX, U(OCT_V[1]) * PX
 R0, R1, RP = 44.0, 57.0, 80
@@ -416,6 +416,14 @@ def _label(text, cx, cy, cap):
     reg9[:] = reg9 * (1 - 0.95 * lab[..., None]) + (inkc + 0.35 * grain) * (0.95 * lab[..., None])
     return (lx0, ly0, lw, lh)
 print('etiquettes', _label('OCTAVE', tx, ty + (849.0 - sy), 24.5), _label('FAT', tx, ty - 70, 18.0), _label('BRIGHT', tx, ty + 70, 18.0))
+# petite LED d'octave (verte, eteinte dans le fond ; le plugin l'allume quand l'octave est en service) sous OCTAVE
+OCT_LED_R = 4.4
+OCTLEDU = (tx / PX, (ty + 196.0) / PX)
+orgb, om = render_led(OCT_LED_R, base=(20, 44, 16), hi=(40, 80, 34)); on_ = orgb.shape[0]
+oxa, oya = int(round(OCTLEDU[0] * PX - on_ / 2)), int(round(OCTLEDU[1] * PX - on_ / 2))
+osh = np.zeros(img.shape[:2], np.float32); osh[oya + 2:oya + 2 + on_, oxa + 2:oxa + 2 + on_] = om
+img *= (1 - 0.45 * cv2.GaussianBlur(osh, (0, 0), 2.5)[..., None])
+img[oya:oya + on_, oxa:oxa + on_] = img[oya:oya + on_, oxa:oxa + on_] * (1 - om[..., None]) + orgb * om[..., None]
 OCTU = (U(OCT_V[0]), U(OCT_V[1]))
 print('octave : inverseur', OCTU)
 
@@ -428,7 +436,7 @@ kp = [(U(cx), U(cy)) for cx, cy, _ in KNOBS]
 kr = [U(R) for _, _, R in KNOBS]
 tp = [(U(cx), U(cy)) for cx, cy in TOGGLES]
 st = tuple(U(v) for v in STATUS_BOX); pr = tuple(U(v) for v in PRESET_BOX)
-lay = dict(knobs=kp, knobR=kr, toggles=tp, octave=OCTU, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
+lay = dict(knobs=kp, knobR=kr, toggles=tp, octave=OCTU, octLed=OCTLEDU, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
            footR=U(FOOT_R), glow=GLOW, pickle=PKU, status=st, preset=pr)
 json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
 open(os.path.join(ROOT, 'Layout.h'), 'w').write(f"""// genere par tools/make_background.py - ne pas modifier a la main (repere 760 x 958)
@@ -439,6 +447,7 @@ namespace layout
     const juce::Point<float> knobPos[3] = {{ {P(kp[0])}, {P(kp[1])}, {P(kp[2])} }};
     const float knobR[3] = {{ {kr[0]:.2f}f, {kr[1]:.2f}f, {kr[2]:.2f}f }};      // rayon du moletage
     const juce::Point<float> crunchPos {P(tp[0])}, scoopPos {P(tp[1])}, octavePos {P(OCTU)};
+    const juce::Point<float> octLedPos {P(OCTLEDU)}; const float octLedR = {OCT_LED_R:.2f}f;   // LED d'octave
     const float togHalf = {TOG_HALF:.2f}f;
     const juce::Point<float> ledPos {P(LEDU)}; const float ledR = {LED_R:.2f}f;
     const juce::Point<float> footPos {P((U(FOOT[0]), U(FOOT[1])))}; const float footR = {U(FOOT_R):.2f}f;

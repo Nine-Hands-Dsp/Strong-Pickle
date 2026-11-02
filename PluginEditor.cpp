@@ -14,6 +14,9 @@ namespace
     const float togHalf = layout::togHalf;
     const Point<float> ledPos = layout::ledPos;
     const float ledR = layout::ledR;
+    const Point<float> octLedPos = layout::octLedPos;      // petite LED d'octave (verte), sous OCTAVE
+    const float octLedR = layout::octLedR;
+    const Colour octCore (0xffeaffd6), octMid (0xff5fe23e), octDeep (0xff1d6512);
     const Rectangle<float> glowRect = layout::glowRect;
     const Rectangle<float> pickleRect = layout::pickleRect;    // « PICKLE » s'allume en vert avec l'effet
     const Point<float> footPos = layout::footPos;
@@ -248,6 +251,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     lastPresetCounter = proc.presetCounter.load();
     lastMidiCount = proc.midiCounter.load();
     ledLevel = proc.rawAt (PickleAudioProcessor::rActive) > 0.5f ? 1.0f : 0.0f;
+    octLedLevel = (ledLevel > 0.5f && roundToInt (proc.rawAt (PickleAudioProcessor::rOctave)) != 0) ? 1.0f : 0.0f;
 
     // Taille par defaut = taille minimale (impossible de reduire en dessous), proportions bloquees
     const int defaultW = roundToInt ((float) defaultH * (float) baseW / (float) baseH);
@@ -477,6 +481,17 @@ void PickleAudioProcessorEditor::timerCallback()
         askRepaint (scaled (glowRect));
         askRepaint (scaled (pickleRect));
     }
+    // LED d'octave : allumee quand l'octave est en service (Fat ou Bright) et l'effet actif ; meme fondu
+    const bool octOn = on && roundToInt (proc.rawAt (PickleAudioProcessor::rOctave)) != 0;
+    octLedLevel += ((octOn ? 1.0f : 0.0f) - octLedLevel) * (octOn ? 0.45f : 0.28f);
+    if (octLedLevel < 0.003f) octLedLevel = 0.0f;
+    if (octLedLevel > 0.997f) octLedLevel = 1.0f;
+    if (std::abs (octLedLevel - drawnOctLed) > 0.004f)
+    {
+        drawnOctLed = octLedLevel;
+        const float hr = octLedR * 4.0f;
+        askRepaint (scaled ({ octLedPos.x - hr, octLedPos.y - hr, hr * 2.0f, hr * 2.0f }).expanded (2));
+    }
 
     const auto l1 = (learnLineUntil > 0.0 && now < learnLineUntil + 800.0 ? learnLine : buildStatusLine()), pl = buildPresetLine();
     const bool textChanged = l1 != lastLine1;
@@ -522,6 +537,26 @@ void PickleAudioProcessorEditor::drawLed (Graphics& g)
     g.setColour (ledDeep.darker (0.6f).withAlpha (0.55f * level));
     g.drawEllipse (c.x - r + 0.6f, c.y - r + 0.6f, r * 2.0f - 1.2f, r * 2.0f - 1.2f, r * 0.12f);
 
+    ColourGradient sp (Colours::white.withAlpha (0.75f * level), c.x - r * 0.30f, c.y - r * 0.42f,
+                       Colours::white.withAlpha (0.0f), c.x - r * 0.30f + r * 0.32f, c.y - r * 0.42f, true);
+    g.setGradientFill (sp);
+    g.fillEllipse (c.x - r * 0.62f, c.y - r * 0.70f, r * 0.64f, r * 0.52f);
+}
+
+void PickleAudioProcessorEditor::drawOctLed (Graphics& g)
+{
+    const float level = octLedLevel;
+    if (level <= 0.003f) return;
+    const auto c = octLedPos; const float r = octLedR;
+    ColourGradient halo (octMid.withAlpha (0.30f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 3.8f, c.y, true);
+    g.setGradientFill (halo);
+    g.fillEllipse (c.x - r * 3.8f, c.y - r * 3.8f, r * 7.6f, r * 7.6f);
+    ColourGradient body (octCore.withAlpha (level), c.x - r * 0.10f, c.y - r * 0.12f,
+                         octDeep.withAlpha (level), c.x + r * 1.05f, c.y + r * 0.2f, true);
+    body.addColour (0.30, octCore.interpolatedWith (octMid, 0.55f).withAlpha (level));
+    body.addColour (0.62, octMid.withAlpha (level));
+    g.setGradientFill (body);
+    g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
     ColourGradient sp (Colours::white.withAlpha (0.75f * level), c.x - r * 0.30f, c.y - r * 0.42f,
                        Colours::white.withAlpha (0.0f), c.x - r * 0.30f + r * 0.32f, c.y - r * 0.42f, true);
     g.setGradientFill (sp);
@@ -589,6 +624,7 @@ void PickleAudioProcessorEditor::paint (Graphics& g)
     const float s = (float) getHeight() / (float) baseH;
     g.addTransform (AffineTransform::scale (s));
     drawLed (g);
+    drawOctLed (g);
     drawStatus (g);
     drawPresetBar (g);
 }
