@@ -18,14 +18,14 @@ Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Stud
 
 | Élément | Swollen Pickle MkIII | Dans Strong Pickle |
 |---|---|---|
-| Circuit | Big Muff modifié : étage d'entrée, deux étages d'écrêtage à diodes, tone stack passif, étage de sortie | **v1.1 : modèle composant par composant** (`PickleCircuit.h`), résolu à chaque échantillon (Newton, sur-échantillonnage x4) : transistors 2N3904 (Ebers-Moll), diodes 1N914 en série avec 1 µF, Miller 470 pF, contre-réaction 470 k, liaisons 220 / 150 nF sur 10 k (grave réduit avant l'écrêtage : fuzz définie, pas de bave) |
+| Circuit | Big Muff modifié : étage d'entrée, deux étages d'écrêtage à diodes, tone stack passif, étage de sortie | **v1.1 : modèle composant par composant** (`PickleCircuit.h`), résolu à chaque échantillon (Newton, sur-échantillonnage x4) : transistors 2N3904 (Ebers-Moll), diodes 1N914 en série avec 1 µF, Miller 330 pF, contre-réaction 470 k, liaisons 150 / 100 nF sur 10 k (grave réduit avant l'écrêtage : fuzz définie, pas de bave) |
 | SUSTAIN | Quantité de fuzz ; gain total 18 à 62 dB (fiche Way Huge) | Diviseur entre l'étage d'entrée et le 1er étage d'écrêtage : 18 → 62 dB mesurés en petits signaux (`tests/test_dsp.cpp`) ; le niveau suit le jeu, pas de pompage |
 | LOUDNESS | Volume de sortie, réserve énorme | Courbe audio, 0 = coupé, midi ≈ +4,5 dB au-dessus du bypass, +12 dB en haut de course (limiteur de sécurité à 0 dBFS) |
 | FILTER | Du sombre / gras au brillant / fin | Tone stack passif aux valeurs Big Muff : 39 k / 10 nF (passe-bas), 4 nF / 22 k (passe-haut), pot 100 k |
 | SCOOP (inverseur) | Creuse les médiums | Bas = voix classique (creux ≈ −5 dB vers 800 Hz) ; haut = valeurs écartées 22 nF / 2,2 nF, creux ≈ −12 dB |
 | CRUNCH (inverseur) | Change l'intensité de la compression | Bas = diodes directes (fuzz dense, compressée) ; haut = 8,2 k en série avec les diodes : fuzz plus ouverte, granuleuse et dynamique, +2 à 3 dB |
 | Les deux inverseurs en bas | La Swollen Pickle « trois potards » classique | Preset 1 *Classic Pickle* |
-| Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons 220 / 150 nF (au lieu de 100 nF) : grave plein mais serré |
+| Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons 150 / 100 nF : grave plein mais serré |
 | Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour ; le mot **PICKLE** s'allume en vert quand l'effet est actif (même fondu) |
 | Noise gate (ajout) | — | Clic droit > *Noise gate* : Off (défaut, comme la pédale) / Light / Medium / Strong |
 
@@ -81,3 +81,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 
 - v1.1.0 : clic droit > Plugin size > Default size (new windows) : taille par défaut des nouvelles fenêtres au choix, comme dans Octopus
 - v1.2.0 : fuzz refaite au niveau des composants (`PickleCircuit.h` : 2N3904, 1N914, condensateurs et tone stack réels, résolution à chaque échantillon) : plus de pompage ni de compression artificielle, plus de gain, grave réduit avant l'écrêtage (fuzz définie) ; CRUNCH = 8,2 k en série avec les diodes ; « PICKLE » allumé exactement aligné sur les lettres éteintes
+- v1.2.1 : plus de définition, moins de bave : liaisons des étages d'écrêtage 150 / 100 nF (au lieu de 220 / 150 nF), condensateur Miller 330 pF (au lieu de 470 pF)

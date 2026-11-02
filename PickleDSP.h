@@ -10,9 +10,9 @@
 //  IN -> [sur-echantillonnage x4]
 //     -> Q1 etage d'entree (emetteur commun, ~ +20 dB, Miller 33 pF)
 //     -> SUSTAIN (diviseur : 18 a 62 dB de gain au total, fiche Way Huge)
-//     -> Q2, Q3 etages d'ecretage : 2N3904, contre-reaction 470 k, Miller 470 pF,
+//     -> Q2, Q3 etages d'ecretage : 2N3904, contre-reaction 470 k, Miller 330 pF (v1.2.1, plus de definition),
 //        diodes 1N914 tete-beche en serie avec 1 uF (collecteur -> base) ;
-//        liaisons 220 nF / 10 k : le grave est retire avant l'ecretage (fuzz definie, pas de bave)
+//        liaisons 150 / 100 nF sur 10 k (v1.2.1) : le grave est retire avant l'ecretage (fuzz definie, pas de bave)
 //          CRUNCH : bas = diodes directes (Swollen Pickle classique) ; haut = 8,2 k en serie avec les diodes :
 //                   l'etage monte jusqu'a ses rails, fuzz plus ouverte, plus granuleuse et plus forte
 //     -> tone stack passif FILTER (39 k / 10 nF passe-bas, 4 nF / 22 k passe-haut, pot 100 k)
@@ -208,7 +208,7 @@ namespace pickle
 
     // valeurs des composants
     inline StageValues boosterValues() { return { 82e3, 1e-6, 1.8e6, 33e-12, 15e3, 470, false, 1e-6, 9.0 }; }
-    inline StageValues clipValues (double cin) { return { 10e3, cin, 470e3, 470e-12, 15e3, 150, true, 1e-6, 9.0 }; }
+    inline StageValues clipValues (double cin) { return { 10e3, cin, 470e3, 330e-12, 15e3, 150, true, 1e-6, 9.0 }; }
     inline StageValues outputValues() { return { 180e3, 100e-9, 1.8e6, 22e-12, 15e3, 1000, false, 1e-6, 9.0 }; }
 
     //--------------------------------------------------------------------------
@@ -220,8 +220,8 @@ namespace pickle
             sr = sampleRate; srO = sr * Oversampler4::factor;
             os.design();
             q1.prepare (boosterValues(), sr);          // etage d'entree : presque lineaire, a la frequence du projet
-            q2.prepare (clipValues (220e-9), srO);
-            q3.prepare (clipValues (150e-9), srO);
+            q2.prepare (clipValues (150e-9), srO);
+            q3.prepare (clipValues (100e-9), srO);
             q4.prepare (outputValues(), sr);           // etage de sortie : idem, apres la decimation
             tone.prepare (srO);
             dc1.setLP (sr, 4.0); dc3.setLP (srO, 4.0); dcOut.setLP (sr, 6.0);
