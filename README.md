@@ -57,7 +57,7 @@ MIDI Learn sur toutes les commandes (clic droit sur une commande ou menu MIDI), 
 | CC 23 | Crunch (≥ 64 = haut) |
 | CC 24 | Scoop (≥ 64 = haut) |
 | CC 25 | Footswitch (on / bypass) |
-| Program Change 1 à 11 | Presets d'usine |
+| Program Change 1 à 12 | Presets d'usine |
 
 Footswitch MIDI à accrochage (127 = on / 0 = off, par défaut) ou momentané (bascule à chaque appui) : clic droit > Settings.
 Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'intervalle mesuré entre deux CC, puis lissage
@@ -66,7 +66,7 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 ## Presets d'usine
 
 1. Classic Pickle · 2. Siamese Dream · 3. Smooth Low Fuzz · 4. Sputter Zone · 5. Open Crunch · 6. Scooped Power Chords ·
-7. Dark Wool · 8. Bright Lead · 9. Amp Pusher · 10. Bass Pickle · 11. Doom Sludge
+7. Dark Wool · 8. Bright Lead · 9. Amp Pusher · 10. Bass Pickle · 11. Doom Sludge · 12. 7 Words (Deftones, intro de *7 Words*)
 
 ## Fichiers
 
@@ -82,3 +82,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.1.0 : clic droit > Plugin size > Default size (new windows) : taille par défaut des nouvelles fenêtres au choix, comme dans Octopus
 - v1.2.0 : fuzz refaite au niveau des composants (`PickleCircuit.h` : 2N3904, 1N914, condensateurs et tone stack réels, résolution à chaque échantillon) : plus de pompage ni de compression artificielle, plus de gain, grave réduit avant l'écrêtage (fuzz définie) ; CRUNCH = 8,2 k en série avec les diodes ; « PICKLE » allumé exactement aligné sur les lettres éteintes
 - v1.2.1 : plus de définition, moins de bave : liaisons des étages d'écrêtage 150 / 100 nF (au lieu de 220 / 150 nF), condensateur Miller 330 pF (au lieu de 470 pF)
+- v1.2.2 : preset 12 « 7 Words » (son de l'intro de *7 Words*, Deftones)

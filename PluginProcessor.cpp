@@ -20,6 +20,7 @@ static const PicklePreset factoryPresets[] =
     { "Amp Pusher",              8.0f, 1.5f, 6.5f, 1, 0 },   // peu de fuzz, beaucoup de volume devant un ampli deja sature
     { "Bass Pickle",             5.0f, 4.0f, 3.5f, 0, 0 },
     { "Doom Sludge",             6.0f, 10.f, 3.0f, 0, 1 },
+    { "7 Words",                 5.0f, 6.0f, 6.0f, 1, 0 },   // Deftones, intro de 7 Words (Adrenaline) : riff hache, epais et net, mediums presents
 };
 
 int PickleAudioProcessor::getNumFactoryPresets() { return (int) std::size (factoryPresets); }

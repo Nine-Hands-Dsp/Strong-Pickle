@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1]
 OUT = sys.argv[2]
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -151,7 +151,7 @@ FACTORY = [  # nom, loudness, sustain, filter, crunch, scoop
     ("Open Crunch",          4.5, 6.0, 6.0, 1, 0), ("Scooped Power Chords", 5.0, 7.0, 5.0, 0, 1),
     ("Dark Wool",            6.0, 6.0, 2.0, 0, 0), ("Bright Lead",          5.0, 8.5, 7.5, 1, 0),
     ("Amp Pusher",           8.0, 1.5, 6.5, 1, 0), ("Bass Pickle",          5.0, 4.0, 3.5, 0, 0),
-    ("Doom Sludge",          6.0, 10.0, 3.0, 0, 1)]
+    ("Doom Sludge",          6.0, 10.0, 3.0, 0, 1), ("7 Words",              5.0, 6.0, 6.0, 1, 0)]
 FACT_DESC = {
  "en": ["Both switches down, all knobs at noon: the classic three-knob Swollen Pickle.",
         "The guitars of Smashing Pumpkins' <i>Siamese Dream</i>: Billy Corgan recorded almost all its fuzz through a late-'70s op-amp Big Muff, more compressed than the transistor versions. Sustain at 2 o'clock, tone just past noon, mids barely scooped, compressed fuzz, volume matched to your clean sound. Double the rhythm part and pan it hard left / right.",
@@ -163,7 +163,8 @@ FACT_DESC = {
         "High sustain, bright filter and Crunch up: a lead that cuts through the mix.",
         "Little fuzz and a lot of volume, Crunch up: pushes an amp that is already overdriven, as metal producers do with the Swollen Pickle.",
         "Moderate sustain and a darker filter keep the low end of a bass (or a low-tuned guitar) round and full.",
-        "Sustain full, scooped and dark: an endless wall for slow, heavy riffs."],
+        "Sustain full, scooped and dark: an endless wall for slow, heavy riffs.",
+        "The intro riff of Deftones' <i>7 Words</i> (<i>Adrenaline</i>, 1995): choppy, chunky and aggressive, but crisp and precise, as reviews of the record describe it. Sustain just past noon, Filter slightly bright, Crunch up for a more open, articulate attack, mids kept (Scoop down). Play it palm-muted and tight, into a high-gain amp."],
  "fr": ["Les deux inverseurs en bas, tous les potards à midi : la Swollen Pickle classique à trois potards.",
         "Les guitares de <i>Siamese Dream</i> des Smashing Pumpkins : Billy Corgan a enregistré presque toutes les fuzz de l'album avec un Big Muff op-amp de la fin des années 70, plus compressé que les versions à transistors. Sustain vers 14 h, tone à peine au-dessus de midi, médiums juste un peu creusés, fuzz compressée, volume au niveau du son clair. Doublez la rythmique et panotez-la gauche / droite.",
         "Sustain vers 9 h : la fuzz lisse et ronde, juste avant la zone qui crachote.",
@@ -174,7 +175,8 @@ FACT_DESC = {
         "Beaucoup de sustain, filter brillant et Crunch en haut : un solo qui passe devant le mix.",
         "Peu de fuzz et beaucoup de volume, Crunch en haut : pour pousser un ampli déjà saturé, comme le font des producteurs metal avec la Swollen Pickle.",
         "Sustain modéré et filter plus sombre : le grave d'une basse (ou d'une guitare accordée bas) reste rond et plein.",
-        "Sustain à fond, médiums creusés et son sombre : un mur sans fin pour les riffs lents et lourds."]}
+        "Sustain à fond, médiums creusés et son sombre : un mur sans fin pour les riffs lents et lourds.",
+        "Le riff d'intro de <i>7 Words</i> de Deftones (<i>Adrenaline</i>, 1995) : haché, épais et agressif, mais net et précis, comme le décrivent les critiques de l'album. Sustain juste après midi, Filter un peu brillant, Crunch en haut pour une attaque plus ouverte et articulée, médiums gardés (Scoop en bas). Jouez-le en palm mute, bien serré, dans un ampli à fort gain."]}
 def pc(v): return f"{round(v * 10)} %"
 SW = {"en": ("down", "up"), "fr": ("bas", "haut")}
 
@@ -223,7 +225,7 @@ T = {
        ["Footswitch", "CC 25", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"]],
  learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-25)</b>. The assignments are saved with the project.",
         "<b>Expression pedals</b>: movements are never stepped. Strong Pickle ramps to each new value over the time between two messages; the real travel of your pedal is learnt automatically (a pedal sending only 2 to 116 still reaches exactly 0 and 100 %). For a knob on CC 0 to 31, CC n+32 is read as its fine 14-bit part.",
-        "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 11</b> recall the factory presets. All parameters can also be automated in the DAW."],
+        "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 12</b> recall the factory presets. All parameters can also be automated in the DAW."],
  win_t="7. Window",
  win=["Strong Pickle uses the single pedal format of Echoflex and Doorn: the window opens at its default size and can never be made smaller. Right-click &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b> or <b>100 %</b> for this window, \"(default)\" marking the default size; <b>Default size (new windows)</b> chooses the size at which new Strong Pickle windows open (shared by all instances) and resizes the current one at once. You can also drag the bottom-right corner up to 150 % (proportions are kept).",
       "The <b>screen</b> shows the setting of the knob or switch you just moved (knobs in %, e.g. <i>sustain 64 %</i>, <i>crunch up (open)</i>); it appears when a setting moves and fades out after 2.5 s. It also shows the MIDI Learn messages. The <b>preset bar</b> under it always shows the current preset (or <i>Edited</i>) and the bypass state."],
@@ -242,7 +244,7 @@ T = {
        ["Filter", "passive tone stack 39 k / 10 nF and 4 nF / 22 k, 100 k pot; Scoop: deeper mid cut (about −12 dB)"],
        ["Loudness", "muted to +12 dB; noon ≈ +4.5 dB over bypass"],
        ["Processing", "component-level circuit model (2N3904, 1N914), 4x oversampling, smoothed parameters"], ["CPU", "about 12 to 25 % of one core at 48 kHz (stereo), depending on the computer"],
-       ["MIDI", "all channels; MIDI Learn on the 6 controls (defaults CC 20-25), 14-bit CC, Program Change 1-11"],
+       ["MIDI", "all channels; MIDI Learn on the 6 controls (defaults CC 20-25), 14-bit CC, Program Change 1-12"],
        ["Window", "60 % (default) / 75 % / 100 %, up to 150 %, never smaller than the default size; anti-freeze v2 under Windows"]]),
 "fr": dict(
  lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
@@ -288,7 +290,7 @@ T = {
        ["Footswitch", "CC 25", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"]],
  learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-25)</b>. Les assignations sont sauvegardées avec le projet.",
         "<b>Pédales d'expression</b> : les mouvements ne sont jamais saccadés. Strong Pickle rejoint chaque nouvelle valeur par une rampe sur le temps mesuré entre deux messages ; la course réelle de votre pédale est apprise automatiquement (une pédale qui n'envoie que 2 à 116 atteint quand même exactement 0 et 100 %). Pour un potard sur un CC de 0 à 31, le CC n+32 est lu comme sa partie fine (14 bits).",
-        "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 11</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
+        "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 12</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
  win_t="7. Fenêtre",
  win=["Strong Pickle utilise le format pédale simple d'Echoflex et de Doorn : la fenêtre s'ouvre à sa taille par défaut et ne peut jamais être réduite en dessous. Clic droit &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b> ou <b>100 %</b> pour cette fenêtre, « (default) » indiquant la taille par défaut ; <b>Default size (new windows)</b> choisit la taille à laquelle s'ouvrent les nouvelles fenêtres de Strong Pickle (réglage commun à toutes les instances) et redimensionne aussitôt la fenêtre courante. Vous pouvez aussi tirer le coin en bas à droite jusqu'à 150 % (les proportions sont conservées).",
       "L'<b>écran</b> affiche le réglage du potard ou de l'inverseur que vous venez de bouger (potards en %, par ex. <i>sustain 64 %</i>, <i>crunch up (open)</i>) ; il apparaît quand un réglage bouge et s'efface au bout de 2,5 s. Il affiche aussi les messages du MIDI Learn. La <b>barre de presets</b> en dessous affiche en permanence le preset (ou <i>Edited</i>) et l'état du bypass."],
@@ -307,7 +309,7 @@ T = {
        ["Filter", "tone stack passif 39 k / 10 nF et 4 nF / 22 k, pot 100 k ; Scoop : creux plus profond (environ −12 dB)"],
        ["Loudness", "coupé à +12 dB ; midi ≈ +4,5 dB au-dessus du bypass"],
        ["Traitement", "modèle du circuit composant par composant (2N3904, 1N914), sur-échantillonnage x4, paramètres lissés"], ["Processeur", "environ 12 à 25 % d'un cœur à 48 kHz (stéréo), selon l'ordinateur"],
-       ["MIDI", "tous les canaux ; MIDI Learn sur les 6 commandes (CC 20-25 par défaut), CC 14 bits, Program Change 1-11"],
+       ["MIDI", "tous les canaux ; MIDI Learn sur les 6 commandes (CC 20-25 par défaut), CC 14 bits, Program Change 1-12"],
        ["Fenêtre", "60 % (default) / 75 % / 100 %, jusqu'à 150 %, jamais plus petite que la taille par défaut ; anti-gel v2 sous Windows"]]),
 }
 
