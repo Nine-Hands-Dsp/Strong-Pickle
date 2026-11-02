@@ -270,6 +270,73 @@ srcp = np.where(a[..., None] > 1e-3, base + (lit - base) / np.maximum(a[..., Non
 pk = np.dstack([np.clip(srcp, 0, 255), a[..., None] * 255]).astype(np.uint8)
 Image.fromarray(pk, 'RGBA').save(os.path.join(ROOT, 'pickle_glow.png'))
 
+# ------------------------------------------------------------------ 8. jack OUT (gauche) a la taille exacte du jack IN (droite)
+# Dans le visuel, le jack gauche est plus grand que le droit. Il est efface (texture brossee horizontale du fond
+# prolongee ligne par ligne) puis recolle reduit a la hauteur du jack droit, toujours contre le bord du boitier,
+# a la meme hauteur : il garde son propre eclairage (lumiere en haut a gauche).
+def _green(a):
+    return (a[..., 1] - np.maximum(a[..., 0], a[..., 2])) > 25
+def _bbox(m):
+    ys, xs = np.where(m); return xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+JY0, JY1 = 800, 1140                               # bande verticale des jacks (px du fond 1520 x 1916)
+band = img[JY0:JY1].copy()
+LX0, LX1 = 150, 262                                 # zone du jack gauche (fond brosse a gauche, boitier vert a droite)
+RX0, RX1 = 1255, 1380
+def _jack(x0, x1, bgcols):
+    reg = band[:, x0:x1]
+    bg = np.median(band[:, bgcols[0]:bgcols[1]], axis=1)
+    g = _green(reg)
+    d = np.abs(reg - bg[:, None]).max(-1) * (~g)
+    m = (d > 22).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, 8)
+    big = 1 + int(np.argmax(st[1:, 4]))
+    core = cv2.morphologyEx((lab == big).astype(np.uint8), cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    # le jack est plein : chaque ligne est remplie de son premier pixel jusqu'au bord vert du boitier
+    hard = np.zeros_like(core)
+    rows = [y for y in range(core.shape[0]) if core[y].sum() >= 3]
+    y_a, y_b = rows[0], rows[-1]
+    outer = np.full(core.shape[0], np.nan)            # bord exterieur du jack (cote fond), ligne par ligne
+    for y in rows:
+        xs = np.where(core[y])[0]; outer[y] = xs.min() if x0 < 700 else xs.max()
+    yy = np.arange(y_a, y_b + 1); ok = ~np.isnan(outer[yy])
+    ob = np.interp(yy, yy[ok], outer[yy][ok])           # lignes manquantes (zones sombres du jack) : interpolees
+    # creux etroits du contour (parties sombres du jack confondues avec le fond) : ouverture sur 25 lignes
+    from scipy.ndimage import grey_opening, grey_closing
+    ob = grey_opening(ob, size=25) if x0 < 700 else grey_closing(ob, size=25)
+    for y, o in zip(yy, ob):
+        o = int(round(o)); gx = np.where(g[y])[0]
+        if x0 < 700:                                   # jack gauche : jusqu'au premier pixel vert a droite
+            stop = gx[gx > o]; hard[y, o:(stop[0] if len(stop) else o + 1)] = 1
+        else:                                          # jack droit : depuis le dernier pixel vert a gauche
+            start = gx[gx < o]; hard[y, (start[-1] + 1 if len(start) else o):o + 1] = 1
+    soft = cv2.GaussianBlur(hard.astype(np.float32), (0, 0), 0.8)
+    soft = np.maximum(soft * (cv2.dilate(hard, np.ones((3, 3), np.uint8)) > 0), cv2.erode(hard, np.ones((3, 3), np.uint8)))
+    return reg, hard, soft
+regL, hardL, softL = _jack(LX0, LX1, (150, 190))
+regR, hardR, softR = _jack(RX0, RX1, (1400, 1440))
+bl = _bbox(hardL); br = _bbox(hardR)
+hL, hR = bl[3] - bl[1], br[3] - br[1]
+k = hR / float(hL)
+print('jack gauche', bl, 'h', hL, '| jack droit', br, 'h', hR, '| echelle', round(k, 3))
+# effacement du jack gauche : texture brossee prise 60 px plus a gauche, meme ligne
+er = cv2.GaussianBlur(cv2.dilate(hardL, np.ones((9, 9), np.uint8)).astype(np.float32), (0, 0), 1.5)
+er *= ~_green(regL)                                                   # le bord vert du boitier reste intact
+src = band[:, LX0 - 60:LX1 - 60]
+out = band.copy()
+out[:, LX0:LX1] = regL * (1 - er[..., None]) + src * er[..., None]
+# recollage reduit : cote boitier (bord droit du jack) fixe, centre vertical fixe
+x0, y0, x1, y1 = bl
+cw, ch = x1 - x0, y1 - y0
+crop = regL[y0:y1, x0:x1]; cm = softL[y0:y1, x0:x1]
+nw, nh = max(1, int(round(cw * k))), hR                             # meme hauteur que le jack droit, proportions gardees
+crop_s = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_AREA)
+cm_s = np.clip(cv2.resize(cm, (nw, nh), interpolation=cv2.INTER_AREA), 0, 1)
+cy = (y0 + y1) / 2.0
+ny0 = int(round(cy - nh / 2.0)); nx0 = LX0 + x1 - nw
+t = out[ny0:ny0 + nh, nx0:nx0 + nw]
+t[:] = t * (1 - cm_s[..., None]) + crop_s * cm_s[..., None]
+img[JY0:JY1] = out
+
 # ------------------------------------------------------------------ sorties
 Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
