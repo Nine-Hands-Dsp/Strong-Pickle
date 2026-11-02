@@ -37,7 +37,7 @@ et le test Bonedo disent qu'il creuse : c'est ce qui est reproduit.
 
 ## Interface
 
-- Fenêtre ouverte à **493 px de haut** (391 × 493), impossible de la réduire en dessous, proportions bloquées, jusqu'à 150 %. Clic droit > *Window size* : 60 % (défaut) / 75 % / 100 %.
+- Fenêtre ouverte à **493 px de haut** (391 × 493), impossible de la réduire en dessous, proportions bloquées, jusqu'à 150 %. Clic droit > *Plugin size* : 60 % / 75 % / 100 %, « (default) » sur la taille par défaut choisie ; *Default size (new windows)* choisit la taille à laquelle s'ouvrent les nouvelles fenêtres du plugin (réglage commun à toutes les instances) et redimensionne aussitôt la fenêtre courante.
 - **Barre de presets** sous la ligne d'état : flèches = preset précédent / suivant, clic sur le nom = menu (presets d'usine, presets utilisateur 1 à 9).
 - **Ligne d'état** : réglage de la commande que l'on bouge (potards en %, inverseurs), police Poppins ; apparaît quand un réglage bouge, puis s'efface.
 - Potards : seule la barrette claire tourne, les reflets du chapeau restent fixes (lumière en haut à gauche). Double-clic = midi.
@@ -76,3 +76,7 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - `tools/make_background.py` : prépare le fond à partir du visuel fourni (repères des potards et leviers effacés, LED jaune éteinte, écran et barre de presets vidés), rend les leviers des inverseurs, calcule le calque de la LED et écrit `Layout.h` ; `tools/make_background_v0.py` : premier design (abandonné).
 - `tools/render/` : compile la vraie fenêtre sous Linux et exporte des captures.
 - `assets/` : kit Studio Wiga (logo, jacks, inverseurs, footswitch d'Echoflex), polices Barlow Condensed et Poppins (SIL Open Font License).
+
+## Historique
+
+- v1.1.0 : clic droit > Plugin size > Default size (new windows) : taille par défaut des nouvelles fenêtres au choix, comme dans Octopus

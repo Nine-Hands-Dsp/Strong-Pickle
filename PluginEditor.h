@@ -90,6 +90,8 @@ public:
     static constexpr int defaultH = 493;
 
     void setScaledHeight (int h);
+    static constexpr int numSizes = 3;          // 60 % (defaut d'origine) / 75 % / 100 %
+    static int sizeHeight (int idx);
     void showStatus();
 
 private:
