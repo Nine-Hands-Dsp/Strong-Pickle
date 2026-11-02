@@ -253,12 +253,17 @@ namespace pickle
         }
         void setOctave (bool on) { octave = on; dcOct.z = 0.0f; octLp.z1 = octLp.z2 = 0.0; }
 
+        // une diode Schottky sur la charge commune : demi-alternance au genou doux (k)
+        static inline float diodeHalf (float u) noexcept
+        {
+            constexpr float k = 0.05f;
+            return 0.5f * (u + std::sqrt (u * u + k * k)) - 0.5f * k;
+        }
         // redresseur double alternance : dephaseur + 2 diodes Schottky (genou doux, seuil vf)
         static inline float octaveUp (float v) noexcept
         {
-            constexpr float g1 = 1.0f, g2 = 0.78f, vf = 0.10f, k = 0.05f;
-            auto half = [] (float u) { return 0.5f * (u + std::sqrt (u * u + k * k)) - 0.5f * k; };
-            return half (g1 * v - vf) + half (-g2 * v - vf);
+            constexpr float g1 = 1.0f, g2 = 0.78f, vf = 0.10f;
+            return diodeHalf (g1 * v - vf) + diodeHalf (-g2 * v - vf);
         }
 
         // un echantillon : x en volts (guitare ~ 0,1 a 0,5 V crete) ; atten : SUSTAIN (lineaire)
