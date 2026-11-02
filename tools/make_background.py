@@ -144,19 +144,69 @@ def paste_rgba(dst, im, x, y):
     al = a[..., 3:4] / 255
     dst[ya:ya + hh, xa:xa + ww] = sub * (1 - al) + a[..., :3] * al
 
-JK = 0.62
-jo = Image.open(os.path.join(AS, 'kit', 'jack_out_gauche.png')).convert('RGBA')
-ji = Image.open(os.path.join(AS, 'kit', 'jack_in_droite.png')).convert('RGBA')
-jo = jo.resize((round(jo.width * JK), round(jo.height * JK)), Image.LANCZOS)
-ji = ji.resize((round(ji.width * JK), round(ji.height * JK)), Image.LANCZOS)
-# ombre des jacks sur le plan de travail
-for im, xr, side in ((jo, U(x0) - jo.width + 3, 'L'), (ji, U(x1) - 3, 'R')):
-    a = np.zeros((H2, W2), np.float32)
-    al = np.asarray(im)[..., 3].astype(np.float32) / 255
-    yt = U(JACK_Y) - im.height / 2
-    a[int(yt) + 30:int(yt) + 30 + im.height, int(xr) + 20:int(xr) + 20 + im.width] = al
-    img *= (1 - 0.55 * blur(a, 7)[..., None])
-    paste_rgba(img, im, xr, yt)
+# v1.0 : embases jack vues de dessus, axe horizontal, sortant des tranches (rendu 3D, meme lumiere que la pedale).
+# Elles sont sur le cote du boitier : aucune ombre portee sur le plan de travail.
+# De la tranche vers l'exterieur : rondelle, ecrou hexagonal (un plat vers le haut), douille filetee.
+JACK_PARTS = [  # (longueur, demi-hauteur, type)
+    (4.0, 40.0, 'washer'),
+    (17.0, 46.0, 'hex'),
+    (13.0, 31.0, 'thread'),
+]
+def render_jack(side):
+    SSJ = 3; k = PX * SSJ
+    Lx = sum(p[0] for p in JACK_PARTS); Hh = max(p[1] for p in JACK_PARTS) + 2
+    n_w, n_h = int(math.ceil(Lx * k)), int(math.ceil(2 * Hh * k))
+    yk, xk = np.mgrid[0:n_h, 0:n_w].astype(np.float32)
+    t = (xk + 0.5) / k                         # distance depuis la tranche (unites)
+    yv = (yk + 0.5) / k - Hh                   # vertical (unites), 0 = axe du jack
+    nx = np.zeros_like(t); ny = np.zeros_like(t); nz = np.zeros_like(t); mask = np.zeros_like(t)
+    shade_k = np.ones_like(t)
+    x_out = 1.0 if side == 'R' else -1.0       # direction de sortie dans l'image
+    t0 = 0.0
+    for ln, hr, kind in JACK_PARTS:
+        sel = (t >= t0) & (t < t0 + ln)
+        u = (t - t0) / ln                      # 0 = cote tranche, 1 = cote exterieur
+        if kind == 'hex':
+            a_ = hr                            # demi-hauteur = rayon aux sommets ; plat superieur de demi-largeur a/2
+            ins = sel & (np.abs(yv) < a_)
+            top = ins & (np.abs(yv) <= a_ / 2)
+            slope = ins & (np.abs(yv) > a_ / 2)
+            nz = np.where(top, 1.0, np.where(slope, 0.5, nz))
+            ny = np.where(slope, np.sign(yv) * 0.866, np.where(top, 0.0, ny))
+            # chanfreins aux deux bouts de l'ecrou
+            ch = np.clip(1 - np.minimum(u, 1 - u) * ln / 1.6, 0, 1)
+            nx = np.where(ins, x_out * np.sign(u - 0.5) * 0.55 * ch, nx)
+            mask = np.where(ins, 1.0, mask)
+        else:
+            r_ = hr
+            ins = sel & (np.abs(yv) < r_)
+            s = np.clip(yv / r_, -0.999, 0.999)
+            ny = np.where(ins, s, ny); nz = np.where(ins, np.sqrt(1 - s * s), nz)
+            if kind == 'thread':
+                th = np.sin((t - t0) * 2 * math.pi / 1.6)
+                nx = np.where(ins, x_out * 0.45 * th, nx)
+                shade_k = np.where(ins, 0.82 + 0.18 * th, shade_k)
+            mask = np.where(ins, 1.0, mask)
+        t0 += ln
+    N_ = np.dstack([nx, ny, nz]); N_ /= np.maximum(np.linalg.norm(N_, axis=2, keepdims=True), 1e-6)
+    ndl_ = np.clip((N_ * L).sum(-1), 0, 1); ndh_ = np.clip((N_ * HV).sum(-1), 0, 1)
+    # nickel : reflet de l'environnement (sombre en bas, clair vers la lampe) + speculaire
+    env = 0.5 + 0.5 * np.clip(-N_[..., 1] * 0.8 + N_[..., 2] * 0.4, -1, 1)
+    c = (34 + 120 * ndl_ ** 1.5 + 70 * env + 230 * ndh_ ** 70) * shade_k
+    rgb = np.dstack([c * 0.98, c * 1.0, c * 1.02])
+    if side == 'L':
+        rgb = rgb[:, ::-1]; mask = mask[:, ::-1]          # geometrie vers la gauche (normales deja orientees, pas de miroir de la lumiere)
+    rgb = cv2.resize(rgb, (n_w // SSJ, n_h // SSJ), interpolation=cv2.INTER_AREA)
+    mask = cv2.resize(mask.astype(np.float32), (n_w // SSJ, n_h // SSJ), interpolation=cv2.INTER_AREA)
+    return rgb, mask, Lx, Hh
+
+for side in ('L', 'R'):
+    jrgb, jm, Lx, Hh = render_jack(side)
+    hh_, ww_ = jm.shape
+    ya = int(round(U(JACK_Y - Hh)))
+    xa = int(round(U(x0 - Lx))) + 1 if side == 'L' else int(round(U(x1))) - 1
+    sub = img[ya:ya + hh_, xa:xa + ww_]
+    img[ya:ya + hh_, xa:xa + ww_] = sub * (1 - jm[..., None]) + jrgb * jm[..., None]
 
 # ------------------------------------------------------------------ 4. inscriptions (encre creme serigraphiee)
 ink = np.array([236, 226, 190], np.float32)

@@ -43,7 +43,7 @@ et le test Bonedo disent qu'il creuse : c'est ce qui est reproduit.
 - Potards : seul le trait blanc tourne, les reflets du chapeau restent fixes (lumière en haut à gauche). Double-clic = midi.
 - Inverseurs : ceux du kit Studio Wiga (FreakOut), image intermédiaire ~55 ms pendant la bascule ; clic = bascule, molette possible.
 - Footswitch d'Echoflex (référence Studio Wiga), bouton assombri tant qu'on appuie.
-- Jacks du kit sur les tranches : OUT à gauche, IN à droite. Pas d'inscription 9 V.
+- Jacks sur les tranches, au milieu de la hauteur (OUT à gauche, IN à droite) : embases vues de dessus (rondelle, écrou hexagonal, douille filetée), sans ombre portée puisqu'elles sont sur le côté du boîtier. Pas d'inscription 9 V.
 - **Anti-gel v2** : moteur de rendu logiciel forcé sous Windows (réappliqué à chaque nouvelle fenêtre hôte), fenêtre opaque, timer 30 Hz qui ne redessine que ce qui a changé (aucun redessin au repos), caches d'images reconstruits par le timer seulement, chien de garde (1,5 s), jamais de redimensionnement forcé ; côté audio, aucun appel à l'hôte depuis le thread audio (file vidée sur le thread de messages), paramètres lus par pointeurs mis en cache. JUCE 8.0.15.
 
 ## MIDI
