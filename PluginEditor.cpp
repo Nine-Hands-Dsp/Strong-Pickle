@@ -176,6 +176,15 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
     glowYellow = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
     pickleGlow = ImageCache::getFromMemory (BinaryData::pickle_glow_png, BinaryData::pickle_glow_pngSize);
+    // v1.2.3 : fond « PICKLE allume » = le fond lui-meme avec les lettres vertes posees au pixel pres (fond a 2 px par unite).
+    // Les deux fonds sont mis a l'echelle de la meme facon et dessines au meme endroit : aucun decalage possible,
+    // a toutes les tailles de fenetre et a toutes les echelles d'affichage.
+    if (background.isValid() && pickleGlow.isValid())
+    {
+        backgroundLit = background.createCopy();
+        Graphics gl (backgroundLit);
+        gl.drawImageAt (pickleGlow, roundToInt (pickleRect.getX() * 2.0f), roundToInt (pickleRect.getY() * 2.0f));
+    }
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
     labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
 
@@ -291,7 +300,8 @@ void PickleAudioProcessorEditor::rebuildCaches (float sc)
     const int gpx = roundToInt (glowRect.getWidth() * s * sc);
     glowYellowS = (gpx >= glowYellow.getWidth()) ? glowYellow : glowYellow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
     const int pkw = roundToInt (pickleRect.getWidth() * s * sc), pkh = roundToInt (pickleRect.getHeight() * s * sc);
-    pickleGlowS = (pkw >= pickleGlow.getWidth()) ? pickleGlow : pickleGlow.rescaled (pkw, pkh, Graphics::highResamplingQuality);
+    bgLitScaled = ! backgroundLit.isValid() ? Image() : ((pw >= backgroundLit.getWidth()) ? backgroundLit : backgroundLit.rescaled (pw, ph, Graphics::highResamplingQuality));
+    ignoreUnused (pkw, pkh);
     repaint();
 }
 
@@ -468,12 +478,6 @@ void PickleAudioProcessorEditor::drawLed (Graphics& g)
         g.setOpacity (level);
         g.drawImage (glowYellowS, glowRect);
     }
-    // le mot « PICKLE » s'allume en vert (meme fondu que la LED)
-    if (pickleGlowS.isValid())
-    {
-        g.setOpacity (level);
-        g.drawImage (pickleGlowS, pickleRect);
-    }
     g.setOpacity (1.0f);
 
     const auto c = ledPos; const float r = ledR;
@@ -542,6 +546,18 @@ void PickleAudioProcessorEditor::paint (Graphics& g)
     g.setImageResamplingQuality (&bg == &background ? Graphics::highResamplingQuality : Graphics::lowResamplingQuality);
     if (bg.isValid())
         g.drawImage (bg, getLocalBounds().toFloat());
+    // « PICKLE » allume : meme image de fond (version allumee), meme mise a l'echelle, limitee a la zone du mot
+    if (ledLevel > 0.003f)
+    {
+        const Image& bl = bgLitScaled.isValid() ? bgLitScaled : backgroundLit;
+        if (bl.isValid())
+        {
+            Graphics::ScopedSaveState ss (g);
+            g.reduceClipRegion (scaled (pickleRect));
+            g.setOpacity (ledLevel);
+            g.drawImage (bl, getLocalBounds().toFloat());
+        }
+    }
 
     const float s = (float) getHeight() / (float) baseH;
     g.addTransform (AffineTransform::scale (s));

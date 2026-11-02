@@ -83,3 +83,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.2.0 : fuzz refaite au niveau des composants (`PickleCircuit.h` : 2N3904, 1N914, condensateurs et tone stack réels, résolution à chaque échantillon) : plus de pompage ni de compression artificielle, plus de gain, grave réduit avant l'écrêtage (fuzz définie) ; CRUNCH = 8,2 k en série avec les diodes ; « PICKLE » allumé exactement aligné sur les lettres éteintes
 - v1.2.1 : plus de définition, moins de bave : liaisons des étages d'écrêtage 150 / 100 nF (au lieu de 220 / 150 nF), condensateur Miller 330 pF (au lieu de 470 pF)
 - v1.2.2 : preset 12 « 7 Words » (son de l'intro de *7 Words*, Deftones)
+- v1.2.3 : « PICKLE » allumé dessiné à partir d'une copie allumée du fond, mise à l'échelle exactement comme le fond : plus aucun décalage entre allumé et éteint, quelles que soient la taille de la fenêtre et l'échelle d'affichage de Windows
