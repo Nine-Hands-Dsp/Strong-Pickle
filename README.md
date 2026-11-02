@@ -50,15 +50,13 @@ et le test Bonedo disent qu'il creuse : c'est ce qui est reproduit.
 ## MIDI
 
 MIDI Learn sur toutes les commandes (clic droit sur une commande ou menu MIDI), assignations sauvegardées avec le projet.
+Depuis la v1.3.1, **aucun CC n'est assigné d'office** (Loudness, Sustain, Filter, Crunch, Scoop, Footswitch, Octave) :
+chaque commande s'assigne par le MIDI Learn ; « Clear all MIDI assignments » efface tout. Les CC 20 à 26 enregistrés
+dans les projets des versions précédentes (assignations d'usine) sont ignorés à l'ouverture.
+Pour un potard appris sur un CC de 0 à 31, le CC n+32 est lu comme poids faible 14 bits.
 
 | Message | Fonction |
 |---|---|
-| CC 20 / 21 / 22 | Loudness / Sustain / Filter |
-| CC 52 / 53 / 54 | Poids faible 14 bits des CC 20 à 22 (si la pédale l'envoie) |
-| CC 23 | Crunch (≥ 64 = haut) |
-| CC 24 | Scoop (≥ 64 = haut) |
-| CC 25 | Footswitch (on / bypass) |
-| CC 26 | Octave (≥ 64 = octave au-dessus) |
 | Program Change 1 à 13 | Presets d'usine |
 
 Footswitch MIDI à accrochage (127 = on / 0 = off, par défaut) ou momentané (bascule à chaque appui) : clic droit > Settings.
@@ -88,3 +86,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.2.3 : « PICKLE » allumé dessiné à partir d'une copie allumée du fond, mise à l'échelle exactement comme le fond : plus aucun décalage entre allumé et éteint, quelles que soient la taille de la fenêtre et l'échelle d'affichage de Windows
 - v1.2.4 : jack OUT (gauche) ramené exactement à la taille du jack IN (droite), même hauteur, toujours contre le bord du boîtier
 - v1.3.0 : inverseur OCTAVE (octave au-dessus d'après la Fulltone Ultimate Octave : déphaseur + redresseur Schottky avant la fuzz, à 4x), CC 26, preset 13 « Octave Lead »
+- v1.3.1 : plus aucune assignation MIDI par défaut (CC 20-26 retirés, y compris ceux enregistrés dans les anciens projets) ; MIDI Learn sur chaque commande, « Clear all MIDI assignments »

@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1]
 OUT = sys.argv[2]
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -230,13 +230,13 @@ T = {
      "<b>Noise gate</b> (right-click &gt; Noise gate): <b>Off</b> by default, like the original pedal, or Light, Medium, Strong for noisy pickups. It opens instantly on the next note and lets notes fade smoothly. Acts on the effect only."],
  on_cap="Bypass, then effect on: PICKLE lit in green, yellow LED.",
  midi_t="6. MIDI",
- midi_intro=["Every control can be driven from a MIDI controller (footswitches, expression pedals, knobs). Strong Pickle listens on all MIDI channels; every number can be changed with <b>MIDI Learn</b>."],
- midi_hdr=["Control", "Default CC", "Type"],
- midi=[["Loudness", "CC 20", "Continuous (0-127 = full travel)"], ["Sustain", "CC 21", "Continuous"], ["Filter", "CC 22", "Continuous"],
-       ["Crunch", "CC 23", "Switch: 64 or more = up"], ["Scoop", "CC 24", "Switch: 64 or more = up"],
-       ["Footswitch", "CC 25", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"],
-       ["Octave", "CC 26", "Switch: 64 or more = octave up"]],
- learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-26)</b>. The assignments are saved with the project.",
+ midi_intro=["Every control can be driven from a MIDI controller (footswitches, expression pedals, knobs). Strong Pickle listens on all MIDI channels. <b>No CC is assigned out of the box</b>: you choose each one with <b>MIDI Learn</b>, so the plugin never reacts to a controller you have not assigned yourself."],
+ midi_hdr=["Control", "Assignment", "Type"],
+ midi=[["Loudness", "MIDI Learn", "Continuous (0-127 = full travel)"], ["Sustain", "MIDI Learn", "Continuous"], ["Filter", "MIDI Learn", "Continuous"],
+       ["Crunch", "MIDI Learn", "Switch: 64 or more = up"], ["Scoop", "MIDI Learn", "Switch: 64 or more = up"],
+       ["Footswitch", "MIDI Learn", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"],
+       ["Octave", "MIDI Learn", "Switch: 64 or more = octave up"]],
+ learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Clear all MIDI assignments</b> removes them all. The assignments are saved with the project.",
         "<b>Expression pedals</b>: movements are never stepped. Strong Pickle ramps to each new value over the time between two messages; the real travel of your pedal is learnt automatically (a pedal sending only 2 to 116 still reaches exactly 0 and 100 %). For a knob on CC 0 to 31, CC n+32 is read as its fine 14-bit part.",
         "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 13</b> recall the factory presets. All parameters can also be automated in the DAW."],
  win_t="7. Window",
@@ -257,7 +257,7 @@ T = {
        ["Filter", "passive tone stack 39 k / 10 nF and 4 nF / 22 k, 100 k pot; Scoop: deeper mid cut (about −12 dB)"],
        ["Loudness", "muted to +12 dB; noon ≈ +4.5 dB over bypass"],
        ["Processing", "component-level circuit model (2N3904, 1N914; Octave: phase splitter and Schottky rectifier), 4x oversampling, smoothed parameters"], ["CPU", "about 12 to 25 % of one core at 48 kHz (stereo), depending on the computer"],
-       ["MIDI", "all channels; MIDI Learn on the 7 controls (defaults CC 20-26), 14-bit CC, Program Change 1-13"],
+       ["MIDI", "all channels; MIDI Learn on the 7 controls (nothing assigned by default), 14-bit CC, Program Change 1-13"],
        ["Window", "60 % (default) / 75 % / 100 %, up to 150 %, never smaller than the default size; anti-freeze v2 under Windows"]]),
 "fr": dict(
  lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
@@ -300,13 +300,13 @@ T = {
      "<b>Noise gate</b> (clic droit &gt; Noise gate) : <b>Off</b> par défaut, comme la pédale d'origine, ou Light, Medium, Strong pour des micros bruyants. Il s'ouvre instantanément à la note suivante et laisse les notes s'éteindre en douceur. N'agit que sur l'effet."],
  on_cap="Bypass, puis effet actif : PICKLE allumé en vert, LED jaune.",
  midi_t="6. MIDI",
- midi_intro=["Toutes les commandes se pilotent depuis un contrôleur MIDI (footswitchs, pédales d'expression, potards). Strong Pickle écoute tous les canaux MIDI ; chaque numéro peut être changé avec le <b>MIDI Learn</b>."],
- midi_hdr=["Commande", "CC par défaut", "Type"],
- midi=[["Loudness", "CC 20", "Continu (0-127 = toute la course)"], ["Sustain", "CC 21", "Continu"], ["Filter", "CC 22", "Continu"],
-       ["Crunch", "CC 23", "Bascule : 64 ou plus = en haut"], ["Scoop", "CC 24", "Bascule : 64 ou plus = en haut"],
-       ["Footswitch", "CC 25", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"],
-       ["Octave", "CC 26", "Bascule : 64 ou plus = octave au-dessus"]],
- learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-26)</b>. Les assignations sont sauvegardées avec le projet.",
+ midi_intro=["Toutes les commandes se pilotent depuis un contrôleur MIDI (footswitchs, pédales d'expression, potards). Strong Pickle écoute tous les canaux MIDI. <b>Aucun CC n'est assigné d'office</b> : vous choisissez chacun avec le <b>MIDI Learn</b>, le plugin ne réagit donc jamais à un contrôleur que vous n'avez pas assigné vous-même."],
+ midi_hdr=["Commande", "Assignation", "Type"],
+ midi=[["Loudness", "MIDI Learn", "Continu (0-127 = toute la course)"], ["Sustain", "MIDI Learn", "Continu"], ["Filter", "MIDI Learn", "Continu"],
+       ["Crunch", "MIDI Learn", "Bascule : 64 ou plus = en haut"], ["Scoop", "MIDI Learn", "Bascule : 64 ou plus = en haut"],
+       ["Footswitch", "MIDI Learn", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"],
+       ["Octave", "MIDI Learn", "Bascule : 64 ou plus = octave au-dessus"]],
+ learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Clear all MIDI assignments</b> les retire toutes. Les assignations sont sauvegardées avec le projet.",
         "<b>Pédales d'expression</b> : les mouvements ne sont jamais saccadés. Strong Pickle rejoint chaque nouvelle valeur par une rampe sur le temps mesuré entre deux messages ; la course réelle de votre pédale est apprise automatiquement (une pédale qui n'envoie que 2 à 116 atteint quand même exactement 0 et 100 %). Pour un potard sur un CC de 0 à 31, le CC n+32 est lu comme sa partie fine (14 bits).",
         "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 13</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
  win_t="7. Fenêtre",
@@ -327,7 +327,7 @@ T = {
        ["Filter", "tone stack passif 39 k / 10 nF et 4 nF / 22 k, pot 100 k ; Scoop : creux plus profond (environ −12 dB)"],
        ["Loudness", "coupé à +12 dB ; midi ≈ +4,5 dB au-dessus du bypass"],
        ["Traitement", "modèle du circuit composant par composant (2N3904, 1N914 ; Octave : déphaseur et redresseur Schottky), sur-échantillonnage x4, paramètres lissés"], ["Processeur", "environ 12 à 25 % d'un cœur à 48 kHz (stéréo), selon l'ordinateur"],
-       ["MIDI", "tous les canaux ; MIDI Learn sur les 7 commandes (CC 20-26 par défaut), CC 14 bits, Program Change 1-13"],
+       ["MIDI", "tous les canaux ; MIDI Learn sur les 7 commandes (rien d'assigné par défaut), CC 14 bits, Program Change 1-13"],
        ["Fenêtre", "60 % (default) / 75 % / 100 %, jusqu'à 150 %, jamais plus petite que la taille par défaut ; anti-gel v2 sous Windows"]]),
 }
 

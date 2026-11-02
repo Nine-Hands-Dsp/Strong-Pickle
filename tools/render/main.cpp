@@ -38,6 +38,7 @@ int main (int argc, char** argv)
 
     // test pedale d'expression : course 2..116 sur CC 21 (sustain)
     {
+        proc.ccMap[1].store (21);                       // assignation faite comme par le MIDI Learn
         auto sendCC = [&] (int v)
         {
             AudioBuffer<float> b (2, 256); MidiBuffer m; m.addEvent (MidiMessage::controllerEvent (1, 21, v), 0);

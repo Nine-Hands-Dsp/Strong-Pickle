@@ -54,7 +54,7 @@ const PickleAudioProcessor::LearnDef& PickleAudioProcessor::learnDef (int i)
 
 void PickleAudioProcessor::resetMidiMap()
 {
-    for (int i = 0; i < numLearn; ++i) ccMap[i].store (learnDef (i).defaultCC);
+    for (int i = 0; i < numLearn; ++i) ccMap[i].store (-1);     // v1.3.1 : aucune assignation par defaut, tout passe par le MIDI Learn
 }
 
 //==============================================================================
@@ -370,6 +370,7 @@ void PickleAudioProcessor::getStateInformation (MemoryBlock& dest)
     state.setProperty ("currentPreset", currentPreset.load(), nullptr);
     for (int i = 0; i < numLearn; ++i)
         state.setProperty (String ("cc_") + learnDef (i).id, ccMap[i].load(), nullptr);
+    state.setProperty ("midiMapVersion", 2, nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary (*xml, dest);
 }
 
@@ -380,8 +381,10 @@ void PickleAudioProcessor::setStateInformation (const void* data, int size)
         {
             auto state = ValueTree::fromXml (*xml);
             currentPreset = (int) state.getProperty ("currentPreset", 0);
+            // projets d'avant la v1.3.1 : les CC 20-26 enregistres etaient les assignations d'usine -> effaces
+            const bool midiV2 = (int) state.getProperty ("midiMapVersion", 1) >= 2;
             for (int i = 0; i < numLearn; ++i)
-                ccMap[i].store (jlimit (-1, 127, (int) state.getProperty (String ("cc_") + learnDef (i).id, learnDef (i).defaultCC)));
+                ccMap[i].store (midiV2 ? jlimit (-1, 127, (int) state.getProperty (String ("cc_") + learnDef (i).id, -1)) : -1);
             apvts.replaceState (state);
             ++presetCounter;
         }

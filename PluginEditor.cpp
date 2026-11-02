@@ -716,7 +716,7 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
                       true, lt == i);
     midi.addSeparator();
     if (lt >= 0) midi.addItem (1200, "Cancel MIDI learn");
-    midi.addItem (1201, "Reset MIDI to defaults (CC 20-26)");
+    midi.addItem (1201, "Clear all MIDI assignments");
     midi.addSeparator();
     midi.addItem (910, "CC n+32 = fine (14-bit) for knobs on CC 0-31", false);
     midi.addItem (911, "Program Change 1-" + String (PickleAudioProcessor::getNumFactoryPresets()) + "  Factory presets", false);

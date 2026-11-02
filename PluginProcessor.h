@@ -87,7 +87,7 @@ public:
 
     // MIDI Learn : toutes les commandes de la facade (meme ordre que la file anti-gel queuedId)
     enum LearnType { learnContinuous, learnToggle, learnFootswitch };
-    struct LearnDef { const char* id; const char* name; int defaultCC; int type; };
+    struct LearnDef { const char* id; const char* name; int defaultCC; int type; };   // defaultCC : numero conseille (non assigne d'office depuis la v1.3.1)
     static constexpr int numLearn = 7;              // 0-2 potards, 3 crunch, 4 scoop, 5 footswitch, 6 octave
     static const LearnDef& learnDef (int i);
     std::atomic<int> ccMap[numLearn];
