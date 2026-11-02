@@ -302,29 +302,70 @@ OCT_V = (TOGGLES[1][0], LED[1])                    # x de SCOOP, a la hauteur de
 OCTU = (U(OCT_V[0]), U(OCT_V[1]))
 RR = U(TOG_RING) * PX + 1.0                          # rayon exterieur de la bague chromee (px du fond)
 TOGS_PX = [(U(cx) * PX, U(cy) * PX) for cx, cy in TOGGLES]
-def _clean_toggle(cx, cy):
-    n = 150; x0, y0 = int(round(cx)) - n, int(round(cy)) - n
+# contour reel de la bague chromee (mesure : boite du chrome) -> centre et rayon exacts, pour ne pas la grignoter
+def _chrome_fit(cx, cy):
+    n = 62; reg = img[int(cy) - n:int(cy) + n, int(cx) - n:int(cx) + n]
+    m_ = ((reg.max(-1) - reg.min(-1) < 40) & (reg.mean(-1) > 75)).astype(np.uint8)
+    m_ = cv2.morphologyEx(m_, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    n_, lab_, st_, _ = cv2.connectedComponentsWithStats(m_, 8)
+    i = 1 + int(np.argmax(st_[1:, 4])); x_, y_, w_, h_, _a = st_[i]
+    return (int(cx) - n + x_ + w_ / 2.0, int(cy) - n + y_ + h_ / 2.0), max(w_, h_) / 2.0 + 0.5
+_fits = [_chrome_fit(cx, cy) for cx, cy in TOGS_PX]
+TOGS_PX = [f[0] for f in _fits]
+RR = max(f[1] for f in _fits)
+print('bagues :', [(round(c[0], 1), round(c[1], 1)) for c in TOGS_PX], 'rayon', RR)
+DONOR = img[1100:1500, 262:560].copy()          # peinture propre a gauche de PICKLE (avant le motif)
+DONOR = np.concatenate([DONOR, DONOR[:, ::-1]], 1); DONOR = np.concatenate([DONOR, DONOR[::-1]], 0)   # agrandi par miroirs
+_rng9 = np.random.default_rng(11)
+def _clean_toggle(cx, cy, dy0):
+    # v1.4.1 : le halo noir granuleux du visuel est remplace par de la vraie peinture du visuel (grand morceau propre,
+    # sans repetition), au grain egalise sur celui qui entoure l'inverseur ; teinte de fond = surface lisse ajustee
+    # sur la peinture autour (eclairage garde) ; raccord le long d'une limite irreguliere (pas de cercle visible).
+    ZR = RR + 98.0                                                              # l'ombre du visuel s'etire loin en bas a droite
+    n = int(ZR + 22)
+    x0, y0 = int(round(cx)) - n, int(round(cy)) - n
     reg = img[y0:y0 + 2 * n, x0:x0 + 2 * n]
     yy_, xx_ = np.mgrid[0:2 * n, 0:2 * n].astype(np.float32)
     dx, dy = xx_ + x0 + 0.5 - cx, yy_ + y0 + 0.5 - cy
     rr_ = np.hypot(dx, dy)
-    ZR = RR + 84                                                               # le halo du visuel va jusque la (en bas a droite)
-    lab_ = cv2.dilate(((reg[..., 0] > 105) & ((reg[..., 1] - reg[..., 0]) < 45)).astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
-    zone = (rr_ >= RR + 2.5) & (rr_ < ZR) & ~lab_                              # les etiquettes ne sont pas touchees
-    labw_ = cv2.dilate(lab_.astype(np.uint8), np.ones((15, 15), np.uint8))           # lettres + marge
-    reg_nl = cv2.inpaint(np.clip(reg, 0, 255).astype(np.uint8), labw_, 6, cv2.INPAINT_TELEA).astype(np.float32)
-    low8 = np.clip(cv2.GaussianBlur(reg_nl, (0, 0), 5.0), 0, 255).astype(np.uint8)   # basse frequence sans les lettres
-    hole_ = (rr_ < ZR + 4).astype(np.uint8)                                          # rempli depuis la peinture exterieure
-    lowf = cv2.inpaint(low8, hole_, 14, cv2.INPAINT_TELEA).astype(np.float32)
-    hps = GRAIN_T[:2 * n, :2 * n]                                              # grain de peinture propre (pave)
-    fill = lowf + hps
-    w_ = cv2.GaussianBlur((np.clip((ZR - rr_) / 10.0, 0, 1) * zone).astype(np.float32), (0, 0), 1.5) * np.clip((rr_ - RR - 1.0) / 2.0, 0, 1)
+    lab_ = cv2.dilate(((reg[..., 0] > 105) & ((reg[..., 1] - reg[..., 0]) < 45)).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
+    labw_ = cv2.dilate(lab_.astype(np.uint8), np.ones((15, 15), np.uint8)) > 0
+    ring = (rr_ > ZR + 3) & ~labw_
+    smooth = cv2.GaussianBlur(reg, (0, 0), 4.0)
+    u, v = dx / n, dy / n
+    X = np.stack([np.ones_like(u), u, v, u * u, u * v, v * v], -1)
+    coef, *_ = np.linalg.lstsq(X[ring], smooth[ring], rcond=None)
+    low = X @ coef                                                              # eclairage de la peinture autour
+    D = DONOR[dy0:dy0 + 2 * n, 18:18 + 2 * n]
+    Dhp = D - cv2.GaussianBlur(D, (0, 0), 6.0)
+    _sd = Dhp.reshape(-1, 3).std(0)
+    Dhp = np.maximum(Dhp, -2.0 * _sd)                                            # pas de taches sombres (les paillettes claires restent)
+    Thp = reg - cv2.GaussianBlur(reg, (0, 0), 6.0)
+    sc = (Thp[ring].std(0) + 1e-3) / (Dhp.reshape(-1, 3).std(0) + 1e-3)         # meme force de grain que autour
+    fill = low + Dhp * sc
+    nz = cv2.GaussianBlur(_rng9.standard_normal((2 * n, 2 * n)).astype(np.float32), (0, 0), 5.0)
+    nz *= 9.0 / (nz.std() + 1e-6)
+    # bague : seulement le chrome (le liseré sombre irregulier du visuel au bord de la bague devient peinture ;
+    # l'ombre de contact posee apres le motif redonne un bord sombre net et regulier)
+    lum_, sat_ = reg.mean(-1), reg.max(-1) - reg.min(-1)
+    chrome = cv2.morphologyEx(((sat_ < 45) & (lum_ > 62)).astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8)) > 0
+    # bord du chrome angle par angle (le liseré sombre du visuel au-dela devient peinture)
+    ang = np.arctan2(dy, dx); bins = ((ang + np.pi) / (2 * np.pi) * 180).astype(int) % 180
+    cm = chrome & (rr_ < RR + 2)
+    edge = np.full(180, RR - 6.0)
+    for b_ in range(180):
+        sel = cm & (bins == b_)
+        if sel.any(): edge[b_] = np.percentile(rr_[sel], 98)
+    from scipy.ndimage import median_filter
+    edge = median_filter(edge, size=9, mode='wrap')
+    edge = np.convolve(np.concatenate([edge[-4:], edge, edge[:4]]), np.ones(9) / 9.0, 'valid')
+    edge = np.maximum(edge, np.median(edge))                                    # jamais en dessous du cercle de la bague (bas sombre du chrome)
+    inner = (rr_ < edge[bins] + 0.8)
+    inner = cv2.GaussianBlur(inner.astype(np.float32), (0, 0), 0.8)
+    w_ = np.clip((ZR + nz - rr_) / 1.6, 0, 1) * (1 - inner) * (~lab_)
+    w_ = cv2.GaussianBlur(w_.astype(np.float32), (0, 0), 0.7)
     reg[:] = reg * (1 - w_[..., None]) + fill * w_[..., None]
-_gp = img[int(280 * PX) - 32:int(280 * PX) + 32, int(190 * PX) - 32:int(190 * PX) + 32]   # peinture propre sous LOUDNESS, a gauche
-_gp = _gp - cv2.GaussianBlur(_gp, (0, 0), 2.0)
-_t = np.concatenate([_gp, _gp[:, ::-1]], 1); _t = np.concatenate([_t, _t[::-1]], 0)       # pave sans raccord (miroirs)
-GRAIN_T = np.tile(_t, (3, 3, 1))
-for cx, cy in TOGS_PX: _clean_toggle(cx, cy)
+for (cx, cy), dy0 in zip(TOGS_PX, (0, 100)): _clean_toggle(cx, cy, dy0)
 def _copy_ring(sx_, sy_, tx_, ty_):
     n = int(RR) + 4
     ys_, xs_ = np.mgrid[-n:n, -n:n].astype(np.float32)
