@@ -112,6 +112,7 @@ private:
     juce::String buildPresetLine() const;
     void drawLed (juce::Graphics&);
     void drawOctLed (juce::Graphics&);
+    void drawOctGlow (juce::Graphics&);
     void drawStatus (juce::Graphics&);
     void drawPresetBar (juce::Graphics&);
 
@@ -119,7 +120,7 @@ private:
     PickleKnobLookAndFeel lnf;
     RightClickForwarder rightClickFwd;
 
-    juce::Image background, bgScaled, glowYellow, glowYellowS, pickleGlow, pickleGlowS, backgroundLit, bgLitScaled;
+    juce::Image background, bgScaled, glowYellow, glowYellowS, glowOct, glowOctS, pickleGlow, pickleGlowS, backgroundLit, bgLitScaled;
     int cacheW = 0, cacheH = 0;
     float cacheScale = 0.0f;
     int resizeSettle = 0;

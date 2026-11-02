@@ -15,7 +15,7 @@ Usage : python3 tools/make_background.py
 """
 import os, json, math
 import numpy as np, cv2
-from PIL import Image
+from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -160,25 +160,28 @@ shadow = np.zeros((H2, W2), np.float32); shadow[ya + 3:ya + 3 + ln_, xa + 2:xa +
 img *= (1 - 0.45 * cv2.GaussianBlur(shadow, (0, 0), 3)[..., None])
 img[ya:ya + ln_, xa:xa + ln_] = img[ya:ya + ln_, xa:xa + ln_] * (1 - lm[..., None]) + lrgb * lm[..., None]
 
-# calque d'eclairage par la LED jaune (la facade recoit la lumiere ; le grain s'allume, les creux restent sombres)
+# calque d'eclairage par une LED jaune (la facade recoit la lumiere ; le grain s'allume, les creux restent sombres).
+# v1.4.1 : calcule a la fin, sur le fond definitif (motif, graduations, ombres compris), pour les deux LED.
 GLOW = (LEDU[0] - 128.0, LEDU[1] - 128.0, 256.0, 256.0)
-gx0, gy0, gw, gh = GLOW
-sx, sy, sw, sh = int(gx0 * PX), int(gy0 * PX), int(gw * PX), int(gh * PX)
-regbg = img[sy:sy + sh, sx:sx + sw].copy()
-gv, gu = np.mgrid[0:sh, 0:sw].astype(np.float32)
-gu = (gu + 0.5) / PX + gx0; gv = (gv + 0.5) / PX + gy0
-d = np.hypot(gu - LEDU[0], gv - LEDU[1])
-hsrc = 8.0
-E = hsrc ** 3 / (d * d + hsrc * hsrc) ** 1.5
-E = 1.25 * E + 0.16 * np.exp(-(d / 60.0) ** 2)
-yel = np.array([1.55, 1.12, 0.22], np.float32)
-lit = regbg * (1 + E[..., None] * yel * 1.9) + (E[..., None] ** 2) * yel * 55
-add = np.clip(lit, 0, 255) - regbg
-a = np.clip(add.max(-1) / 60.0, 0, 1)
-a = np.maximum(a, np.clip(E * 0.9, 0, 1))
-srcg = np.where(a[..., None] > 1e-3, regbg + add / np.maximum(a[..., None], 1e-3), regbg)
-glow = np.dstack([np.clip(srcg, 0, 255), a[..., None] * 255]).astype(np.uint8)
-Image.fromarray(glow, 'RGBA').resize((512, 512), Image.LANCZOS).save(os.path.join(ROOT, 'glow_yellow.png'))
+def make_glow(ledu, path):
+    gx0, gy0, gw, gh = ledu[0] - 128.0, ledu[1] - 128.0, 256.0, 256.0
+    sx, sy, sw, sh = int(round(gx0 * PX)), int(round(gy0 * PX)), int(gw * PX), int(gh * PX)
+    regbg = img[sy:sy + sh, sx:sx + sw].copy()
+    gv, gu = np.mgrid[0:sh, 0:sw].astype(np.float32)
+    gu = (gu + 0.5) / PX + sx / PX; gv = (gv + 0.5) / PX + sy / PX
+    d = np.hypot(gu - ledu[0], gv - ledu[1])
+    hsrc = 8.0
+    E = hsrc ** 3 / (d * d + hsrc * hsrc) ** 1.5
+    E = 1.25 * E + 0.16 * np.exp(-(d / 60.0) ** 2)
+    yel = np.array([1.55, 1.12, 0.22], np.float32)
+    lit = regbg * (1 + E[..., None] * yel * 1.9) + (E[..., None] ** 2) * yel * 55
+    add = np.clip(lit, 0, 255) - regbg
+    a = np.clip(add.max(-1) / 60.0, 0, 1)
+    a = np.maximum(a, np.clip(E * 0.9, 0, 1))
+    srcg = np.where(a[..., None] > 1e-3, regbg + add / np.maximum(a[..., None], 1e-3), regbg)
+    glow = np.dstack([np.clip(srcg, 0, 255), a[..., None] * 255]).astype(np.uint8)
+    Image.fromarray(glow, 'RGBA').resize((512, 512), Image.LANCZOS).save(os.path.join(ROOT, path))
+    return (sx / PX, sy / PX, gw, gh)
 
 # ------------------------------------------------------------------ 6. leviers des inverseurs (rendu 3D, lumiere du visuel)
 # 3 images carrees : levier bas (comme le visuel), intermediaire (~55 ms pendant la bascule), haut.
@@ -229,10 +232,70 @@ fs = frames[0].shape[0]
 strip = np.concatenate(frames, axis=0)
 Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
+# ------------------------------------------------------------------ 6a. graduations, ombres des inverseurs, bague OCTAVE (v1.4.1)
+# graduations des potards : 11 traits tous les 30 degres (7 h -> 5 h), de 1,11 a 1,235 fois le rayon du moletage
+# (mesures sur le visuel), redessines nets et plus visibles, encre creme, petite ombre portee.
+TICK_IN, TICK_OUT = 1.11, 1.235
+tick_ink = np.array([210, 212, 182], np.float32)
+def _ticks(cx, cy, R):
+    SSt = 4; n = int(R * 2.9); x0, y0 = int(cx - n / 2), int(cy - n / 2)
+    cvs = Image.new('L', (n * SSt, n * SSt), 0); dr = ImageDraw.Draw(cvs)
+    w_ = max(1, int(round(0.036 * R * SSt)))
+    for i in range(11):
+        an = math.radians(120 + 30 * i)
+        p0 = ((cx - x0 + TICK_IN * R * math.cos(an)) * SSt, (cy - y0 + TICK_IN * R * math.sin(an)) * SSt)
+        p1 = ((cx - x0 + TICK_OUT * R * math.cos(an)) * SSt, (cy - y0 + TICK_OUT * R * math.sin(an)) * SSt)
+        dr.line([p0, p1], fill=255, width=w_)
+        for pp in (p0, p1): dr.ellipse([pp[0] - w_ / 2, pp[1] - w_ / 2, pp[0] + w_ / 2, pp[1] + w_ / 2], fill=255)
+    m = np.asarray(cvs.resize((n, n), Image.LANCZOS)).astype(np.float32) / 255.0
+    reg = img[y0:y0 + n, x0:x0 + n]
+    sh = cv2.GaussianBlur(np.roll(np.roll(m, 1, 0), 1, 1), (0, 0), 0.8)
+    reg *= (1 - 0.35 * sh[..., None])
+    grain = reg - cv2.GaussianBlur(reg, (0, 0), 2.0)
+    reg[:] = reg * (1 - 0.93 * m[..., None]) + (tick_ink + 0.25 * grain) * (0.93 * m[..., None])
+for cx, cy, R in KNOBS: _ticks(U(cx) * PX, U(cy) * PX, U(R) * PX)
+
+# inverseurs : le halo noir granuleux du visuel autour des bagues est remplace par la peinture (grain pris un peu plus
+# loin sur le meme rayon) ; une ombre portee douce est posee plus loin (apres le motif). Bague OCTAVE = bague SCOOP propre.
+OCT_V = (TOGGLES[1][0], LED[1])                    # x de SCOOP, a la hauteur de la LED
+OCTU = (U(OCT_V[0]), U(OCT_V[1]))
+RR = U(TOG_RING) * PX + 1.0                          # rayon exterieur de la bague chromee (px du fond)
+TOGS_PX = [(U(cx) * PX, U(cy) * PX) for cx, cy in TOGGLES]
+def _clean_toggle(cx, cy):
+    n = 110; x0, y0 = int(round(cx)) - n, int(round(cy)) - n
+    reg = img[y0:y0 + 2 * n, x0:x0 + 2 * n]
+    yy_, xx_ = np.mgrid[0:2 * n, 0:2 * n].astype(np.float32)
+    dx, dy = xx_ + x0 + 0.5 - cx, yy_ + y0 + 0.5 - cy
+    rr_ = np.hypot(dx, dy)
+    zone = (rr_ >= RR - 0.5) & (rr_ < RR + 34)
+    low = cv2.GaussianBlur(reg, (0, 0), 5.0)
+    low8 = np.clip(low, 0, 255).astype(np.uint8)
+    hole_ = (rr_ < RR + 38).astype(np.uint8)                                   # rempli depuis la peinture exterieure seulement
+    lowf = cv2.inpaint(low8, hole_, 14, cv2.INPAINT_TELEA).astype(np.float32)
+    hp = reg - cv2.GaussianBlur(reg, (0, 0), 2.0)
+    k_ = (rr_ + 40.0) / np.maximum(rr_, 1e-3)                               # meme angle, 40 px plus loin
+    gx_ = np.clip(cx + dx * k_ - x0 - 0.5, 0, 2 * n - 1).astype(np.float32); gy_ = np.clip(cy + dy * k_ - y0 - 0.5, 0, 2 * n - 1).astype(np.float32)
+    hps = cv2.remap(hp, gx_, gy_, cv2.INTER_LINEAR)
+    fill = lowf + hps
+    w_ = np.clip((RR + 34 - rr_) / 8.0, 0, 1) * (rr_ >= RR - 0.5)
+    reg[:] = reg * (1 - w_[..., None]) + fill * w_[..., None]
+for cx, cy in TOGS_PX: _clean_toggle(cx, cy)
+def _copy_ring(sx_, sy_, tx_, ty_):
+    n = int(RR) + 4
+    ys_, xs_ = np.mgrid[-n:n, -n:n].astype(np.float32)
+    rr_ = np.hypot(xs_ + 0.5, ys_ + 0.5)
+    mk_ = np.clip((RR + 0.5 - rr_) / 2.0, 0, 1)
+    src_ = img[int(round(sy_)) - n:int(round(sy_)) + n, int(round(sx_)) - n:int(round(sx_)) + n].copy()
+    dst_ = img[int(round(ty_)) - n:int(round(ty_)) + n, int(round(tx_)) - n:int(round(tx_)) + n]
+    dst_[:] = dst_ * (1 - mk_[..., None]) + src_ * mk_[..., None]
+OCT_PX = (U(OCT_V[0]) * PX, U(OCT_V[1]) * PX)
+_copy_ring(TOGS_PX[1][0], TOGS_PX[1][1], OCT_PX[0], OCT_PX[1])
+OCTLEDU = ((OCT_PX[0] - 88.0) / PX, OCT_PX[1] / PX)    # LED d'octave, a gauche de l'inverseur
+
 # ------------------------------------------------------------------ 6b. motif du cornichon sur la coque (v1.4, design fourni)
 # design/source/strong_pickle_motif_seul.png = le dessin seul (trait creme sur fond gris), fourni par Studio Wiga.
 # Il est recale exactement sur le visuel de reference (design/source/strong_pickle_visuel_motif.jpg : matrice affine
-# mesuree par correlation ECC), puis (v1.4.1) reduit de 12 % autour de son coin bas gauche et descendu de 12 unites.
+# mesuree par correlation ECC), puis (v1.4.1) reduit de 12 % autour de son coin bas gauche et descendu de 35 unites (~3 mm).
 # Le trait est agrandi, son contour rendu net, puis peint a l'encre creme avec le grain de la peinture. Il passe
 # derriere les potards, inverseurs, LED, footswitch et le mot PICKLE, ne touche pas les etiquettes, et se voit assombri
 # a travers l'ecran et la barre de presets (cadres semi-transparents, comme sur le visuel).
@@ -247,7 +310,7 @@ if os.path.exists(MOTIF):
     aP = np.clip(aP * 1.35, 0, 1)                                              # traits fins de l'interieur gardes
     Hb, Wb = img.shape[:2]
     al = cv2.warpAffine(aP, D2R, (Wb, Hb), flags=cv2.INTER_CUBIC)
-    MOTIF_SCALE, MOTIF_DY = float(os.environ.get('MOTIF_SCALE', 0.88)), float(os.environ.get('MOTIF_DY', 12.0)) * PX
+    MOTIF_SCALE, MOTIF_DY = float(os.environ.get('MOTIF_SCALE', 0.88)), float(os.environ.get('MOTIF_DY', 35.0)) * PX
     ys_, xs_ = np.where(al > 0.3)
     mcx, mcy = float(np.percentile(xs_, 0.5)), float(np.percentile(ys_, 99.5))
     Tm = np.array([[MOTIF_SCALE, 0, mcx - MOTIF_SCALE * mcx], [0, MOTIF_SCALE, mcy - MOTIF_SCALE * mcy + MOTIF_DY]], np.float64)
@@ -260,8 +323,9 @@ if os.path.exists(MOTIF):
         global keep
         keep *= np.clip((np.hypot(xxb - cx, yyb - cy) - r) / soft, 0, 1)
     for (cx, cy, R) in KNOBS: _hole(U(cx) * PX, U(cy) * PX, U(R) * PX * 1.02, 3.0)
-    for (cx, cy) in TOGGLES: _hole(U(cx) * PX, U(cy) * PX, 44, 3.0)
+    for (cx, cy) in TOGS_PX + [OCT_PX]: _hole(cx, cy, RR - 1.0, 2.0)          # le trait passe sous la bague
     _hole(U(LED[0]) * PX, U(LED[1]) * PX, 22, 3.0)
+    _hole(OCTLEDU[0] * PX, OCTLEDU[1] * PX, 22, 3.0)
     _hole(U(FOOT[0]) * PX, U(FOOT[1]) * PX, U(FOOT_R) * PX * 1.18, 3.0)
     for (bx_, by_, bw_, bh_) in (STATUS_BOX, PRESET_BOX):                     # bord des cadres : pas de trait dessus
         x0_, y0_, x1_, y1_ = U(bx_) * PX - 8, U(by_) * PX - 8, U(bx_ + bw_) * PX + 8, U(by_ + bh_) * PX + 8
@@ -270,6 +334,15 @@ if os.path.exists(MOTIF):
     # le mot PICKLE (il s'allume) : le trait passe derriere, jamais entre les lettres
     _bx, _by, _bw, _bh = 340.0 - 8, 706.0 - 4, 236.0 + 16, 64.0 + 8
     keep *= 1 - ((xxb > U(_bx) * PX) & (xxb < U(_bx + _bw) * PX) & (yyb > U(_by) * PX) & (yyb < U(_by + _bh) * PX)).astype(np.float32)
+    # STRONG et FUZZ : le trait passe derriere les mots (pas entre les lettres)
+    for (wy0, wy1) in ((676.0, 708.0), (764.0, 792.0)):
+        y0w, y1w = int(U(wy0) * PX), int(U(wy1) * PX); x0w, x1w = int(U(320) * PX), int(U(600) * PX)
+        crw = ((img[y0w:y1w, x0w:x1w, 0] > 105) & ((img[y0w:y1w, x0w:x1w, 1] - img[y0w:y1w, x0w:x1w, 0]) < 45)).astype(np.uint8)
+        crw = cv2.morphologyEx(crw, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+        ysw, xsw = np.where(crw > 0)
+        if len(xsw):
+            bx0, bx1, by0, by1 = x0w + xsw.min() - 8, x0w + xsw.max() + 8, y0w + ysw.min() - 6, y0w + ysw.max() + 6
+            keep *= 1 - ((xxb > bx0) & (xxb < bx1) & (yyb > by0) & (yyb < by1)).astype(np.float32)
     # marge autour des lettres creme deja peintes (etiquettes, STRONG / PICKLE / FUZZ) : le trait ne les touche pas
     _cr = ((img[..., 0] > 105) & ((img[..., 1] - img[..., 0]) < 45) & ((img[..., 0] - img[..., 2]) > 8)).astype(np.uint8)
     _cr = cv2.morphologyEx(_cr, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
@@ -289,6 +362,19 @@ if os.path.exists(MOTIF):
     op = 0.88 * (1 - boxB) + 0.30 * boxB                                     # dans les cadres semi-transparents : trait assombri
     img = img * (1 - op * al[..., None]) + ink_ * (op * al[..., None])
     print('motif : %d px de trait' % int((al > 0.5).sum()))
+
+# ombres portees des trois inverseurs (lumiere en haut a gauche) : douce et decalee + ombre de contact serree
+Hb, Wb = img.shape[:2]
+for cx, cy in TOGS_PX + [OCT_PX]:
+    n = 120; x0, y0 = int(round(cx)) - n, int(round(cy)) - n
+    yy_, xx_ = np.mgrid[0:2 * n, 0:2 * n].astype(np.float32)
+    rr0 = np.hypot(xx_ + x0 + 0.5 - cx, yy_ + y0 + 0.5 - cy)
+    disc = (rr0 < RR).astype(np.float32)
+    soft = cv2.GaussianBlur(np.roll(np.roll(disc, 7, 0), 4, 1), (0, 0), 7.0)
+    contact = cv2.GaussianBlur(disc, (0, 0), 2.2)
+    shd = np.clip(0.50 * soft + 0.35 * contact, 0, 0.75) * np.clip((rr0 - RR + 1.0) / 1.5, 0, 1)
+    reg = img[y0:y0 + 2 * n, x0:x0 + 2 * n]
+    reg *= (1 - shd[..., None])
 
 # ------------------------------------------------------------------ 7. « PICKLE » qui s'allume en vert quand l'effet est actif
 # Les lettres creme du visuel deviennent des lettres lumineuses vertes (coeur clair, bord sature),
@@ -404,22 +490,7 @@ img[JY0:JY1] = out
 import sys as _sys
 _sys.path.insert(0, HERE)
 from label_font import render as _render_label
-OCT_V = (TOGGLES[1][0], LED[1])                    # v1.4.1 : x de SCOOP, a la hauteur de la LED
-sx, sy = U(TOGGLES[1][0]) * PX, U(TOGGLES[1][1]) * PX
-tx, ty = U(OCT_V[0]) * PX, U(OCT_V[1]) * PX
-R0, R1, RP = 44.0, 57.0, 80
-def _patch(cx, cy):
-    x0, y0 = int(round(cx)) - RP, int(round(cy)) - RP
-    return x0, y0, img[y0:y0 + 2 * RP, x0:x0 + 2 * RP]
-yy9, xx9 = np.mgrid[-RP:RP, -RP:RP].astype(np.float32)
-rr9 = np.hypot(xx9 + 0.5, yy9 + 0.5)
-mk9 = np.clip((R1 - rr9) / (R1 - R0), 0, 1)
-mk9 = mk9 * mk9 * (3 - 2 * mk9)
-ann = (rr9 > 62) & (rr9 < 76)
-_, _, ps = _patch(sx, sy)
-x0t, y0t, pt = _patch(tx, ty)
-corr = np.median(pt[ann], axis=0) - np.median(ps[ann], axis=0)      # teinte locale de la peinture
-pt[:] = pt * (1 - mk9[..., None]) + (ps + corr) * mk9[..., None]
+tx, ty = OCT_PX
 # etiquettes : OCTAVE sous l'inverseur (comme CRUNCH / SCOOP), FAT au-dessus et BRIGHT en dessous du levier
 # (positions de l'inverseur Fat / Bright de l'Ultimate Octave ; milieu = sans octave)
 inkc = np.array([160, 181, 136], np.float32)
@@ -437,16 +508,16 @@ _lw = _render_label('OCTAVE', 'BarlowCondensed-Bold.ttf', 24.5, 24.5 * 0.13).sha
 print('etiquettes', _label('OCTAVE', tx + 62 + _lw / 2.0, ty, 24.5), _label('FAT', tx, ty - 70, 18.0), _label('BRIGHT', tx, ty + 70, 18.0))
 # LED d'octave (jaune, eteinte dans le fond ; le plugin l'allume quand l'octave est en service), a gauche du levier
 OCT_LED_R = LED_R
-OCTLEDU = ((tx - 88.0) / PX, ty / PX)
 orgb, om = render_led(OCT_LED_R); on_ = orgb.shape[0]
 oxa, oya = int(round(OCTLEDU[0] * PX - on_ / 2)), int(round(OCTLEDU[1] * PX - on_ / 2))
 osh = np.zeros(img.shape[:2], np.float32); osh[oya + 2:oya + 2 + on_, oxa + 2:oxa + 2 + on_] = om
 img *= (1 - 0.45 * cv2.GaussianBlur(osh, (0, 0), 2.5)[..., None])
 img[oya:oya + on_, oxa:oxa + on_] = img[oya:oya + on_, oxa:oxa + on_] * (1 - om[..., None]) + orgb * om[..., None]
-OCTU = (U(OCT_V[0]), U(OCT_V[1]))
 print('octave : inverseur', OCTU)
 
 # ------------------------------------------------------------------ sorties
+GLOW = make_glow(LEDU, 'glow_yellow.png')
+GLOW2 = make_glow(OCTLEDU, 'glow_yellow_oct.png')          # v1.4.1 : lumiere de la LED d'octave sur la facade
 Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
 P = lambda p: '{ %.2ff, %.2ff }' % tuple(p)
@@ -471,6 +542,7 @@ namespace layout
     const juce::Point<float> ledPos {P(LEDU)}; const float ledR = {LED_R:.2f}f;
     const juce::Point<float> footPos {P((U(FOOT[0]), U(FOOT[1])))}; const float footR = {U(FOOT_R):.2f}f;
     const juce::Rectangle<float> glowRect {Rc(GLOW)};
+    const juce::Rectangle<float> octGlowRect {Rc(GLOW2)};   // lumiere de la LED d'octave
     const juce::Rectangle<float> pickleRect {Rc(PKU)};    // calque « PICKLE » allume (vert)
     const juce::Rectangle<float> statusRect {Rc(st)};
     const juce::Rectangle<float> presetRect {Rc(pr)};

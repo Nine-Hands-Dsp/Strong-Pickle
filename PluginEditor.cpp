@@ -18,6 +18,7 @@ namespace
     const float octLedR = layout::octLedR;
     const Colour octCore (0xfffff8d8), octMid (0xffffc21a), octDeep (0xff8a5600);   // meme jaune que la LED principale
     const Rectangle<float> glowRect = layout::glowRect;
+    const Rectangle<float> octGlowRect = layout::octGlowRect;   // lumiere de la LED d'octave sur la facade
     const Rectangle<float> pickleRect = layout::pickleRect;    // « PICKLE » s'allume en vert avec l'effet
     const Point<float> footPos = layout::footPos;
     const float footR = layout::footR;
@@ -197,6 +198,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
     glowYellow = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
+    glowOct    = ImageCache::getFromMemory (BinaryData::glow_yellow_oct_png, BinaryData::glow_yellow_oct_pngSize);
     pickleGlow = ImageCache::getFromMemory (BinaryData::pickle_glow_png, BinaryData::pickle_glow_pngSize);
     // v1.2.3 : fond « PICKLE allume » = le fond lui-meme avec les lettres vertes posees au pixel pres (fond a 2 px par unite).
     // Les deux fonds sont mis a l'echelle de la meme facon et dessines au meme endroit : aucun decalage possible,
@@ -323,6 +325,7 @@ void PickleAudioProcessorEditor::rebuildCaches (float sc)
     const float s = (float) h / (float) baseH;
     const int gpx = roundToInt (glowRect.getWidth() * s * sc);
     glowYellowS = (gpx >= glowYellow.getWidth()) ? glowYellow : glowYellow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
+    glowOctS = ! glowOct.isValid() ? Image() : ((gpx >= glowOct.getWidth()) ? glowOct : glowOct.rescaled (gpx, gpx, Graphics::highResamplingQuality));
     const int pkw = roundToInt (pickleRect.getWidth() * s * sc), pkh = roundToInt (pickleRect.getHeight() * s * sc);
     bgLitScaled = ! backgroundLit.isValid() ? Image() : ((pw >= backgroundLit.getWidth()) ? backgroundLit : backgroundLit.rescaled (pw, ph, Graphics::highResamplingQuality));
     ignoreUnused (pkw, pkh);
@@ -489,8 +492,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (octLedLevel - drawnOctLed) > 0.004f)
     {
         drawnOctLed = octLedLevel;
-        const float hr = octLedR * 4.2f;
-        askRepaint (scaled ({ octLedPos.x - hr, octLedPos.y - hr, hr * 2.0f, hr * 2.0f }).expanded (2));
+        askRepaint (scaled (octGlowRect));
     }
 
     const auto l1 = (learnLineUntil > 0.0 && now < learnLineUntil + 800.0 ? learnLine : buildStatusLine()), pl = buildPresetLine();
@@ -543,12 +545,21 @@ void PickleAudioProcessorEditor::drawLed (Graphics& g)
     g.fillEllipse (c.x - r * 0.62f, c.y - r * 0.70f, r * 0.64f, r * 0.52f);
 }
 
+void PickleAudioProcessorEditor::drawOctGlow (Graphics& g)
+{
+    // la facade recoit la lumiere de la LED d'octave (meme calque precalcule que la LED principale)
+    if (octLedLevel <= 0.003f || ! glowOctS.isValid()) return;
+    g.setOpacity (octLedLevel);
+    g.drawImage (glowOctS, octGlowRect);
+    g.setOpacity (1.0f);
+}
+
 void PickleAudioProcessorEditor::drawOctLed (Graphics& g)
 {
     const float level = octLedLevel;
     if (level <= 0.003f) return;
     const auto c = octLedPos; const float r = octLedR;
-    ColourGradient halo (octMid.withAlpha (0.26f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 4.0f, c.y, true);
+    ColourGradient halo (octMid.withAlpha (0.22f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 4.0f, c.y, true);
     halo.addColour (0.35, octMid.withAlpha (0.10f * level));
     g.setGradientFill (halo);
     g.fillEllipse (c.x - r * 4.0f, c.y - r * 4.0f, r * 8.0f, r * 8.0f);
@@ -624,6 +635,7 @@ void PickleAudioProcessorEditor::paint (Graphics& g)
 
     const float s = (float) getHeight() / (float) baseH;
     g.addTransform (AffineTransform::scale (s));
+    drawOctGlow (g);
     drawLed (g);
     drawOctLed (g);
     drawStatus (g);
