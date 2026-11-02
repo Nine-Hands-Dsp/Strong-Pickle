@@ -26,7 +26,8 @@ public:
 class LeverSwitch : public juce::Component
 {
 public:
-    explicit LeverSwitch (juce::RangedAudioParameter& p);
+    // threePos : inverseur a 3 positions (OCTAVE : haut = Fat, milieu = Off, bas = Bright ; choix 0 Off, 1 Fat, 2 Bright)
+    explicit LeverSwitch (juce::RangedAudioParameter& p, bool threePos = false);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
@@ -35,9 +36,12 @@ public:
     std::function<void()> onRightClick, onUserChange;
 
 private:
-    void moveTo (int newPos);
+    int frameOf (float v) const;
+    float valueOf (int frame) const;
+    void moveTo (int newFrame);
+    const bool three;
     juce::ParameterAttachment attachment;
-    int pos = 0, shownFrame = 0, targetFrame = 0;
+    int frame = 0, shownFrame = 0, targetFrame = 0;     // images : 0 = bas, 1 = milieu, 2 = haut
     double transitionUntil = 0.0;
 };
 

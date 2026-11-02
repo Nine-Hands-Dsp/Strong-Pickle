@@ -16,7 +16,7 @@ struct PicklePreset
     const char* name;
     float loudness, sustain, filter;   // 0..10 comme sur la pedale
     int   crunch, scoop;               // 0 = bas (classique), 1 = haut
-    int   octave = 0;                  // 1 = octave au-dessus (v1.3)
+    int   octave = 0;                  // 0 = off, 1 = Fat, 2 = Bright (v1.4, inverseur 3 positions)
 };
 
 class PickleAudioProcessor : public juce::AudioProcessor,
@@ -75,6 +75,7 @@ public:
     std::atomic<float>* rawPtr[numRaw] {};
 
     static juce::StringArray gateNames() { return { "Off", "Light", "Medium", "Strong" }; }
+    static juce::StringArray octaveNames() { return { "Off", "Fat", "Bright" }; }   // inverseur OCTAVE : milieu / haut / bas
 
     // ---- informations pour la fenetre ----
     std::atomic<int> currentPreset { 0 };      // >= 0 usine, 100 + n utilisateur, -1 = modifie

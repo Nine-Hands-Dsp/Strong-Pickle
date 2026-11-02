@@ -65,23 +65,37 @@ void PickleKnobLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, 
 //==============================================================================
 // INVERSEUR (2 positions : 0 = bas, 1 = haut)
 //==============================================================================
-LeverSwitch::LeverSwitch (RangedAudioParameter& p)
-    : attachment (p, [this] (float v)
+LeverSwitch::LeverSwitch (RangedAudioParameter& p, bool threePos)
+    : three (threePos),
+      attachment (p, [this] (float v)
                   {
-                      const int np = v > 0.5f ? 1 : 0;
-                      if (np != pos)
+                      const int nf = frameOf (v);
+                      if (nf != frame)
                       {
-                          pos = np;
-                          targetFrame = pos == 0 ? 0 : 2;
-                          shownFrame = 1;                              // position intermediaire ~55 ms
+                          const bool jump = std::abs (nf - frame) == 2;
+                          frame = targetFrame = nf;
+                          shownFrame = jump ? 1 : nf;                  // bas <-> haut : position intermediaire ~55 ms
                           transitionUntil = Time::getMillisecondCounterHiRes() + 55.0;
                           repaint();
                       }
                   })
 {
     attachment.sendInitialUpdate();
-    shownFrame = targetFrame = pos == 0 ? 0 : 2;
+    shownFrame = targetFrame = frame;
     setMouseCursor (MouseCursor::PointingHandCursor);
+}
+
+int LeverSwitch::frameOf (float v) const
+{
+    if (! three) return v > 0.5f ? 2 : 0;
+    const int i = roundToInt (v);
+    return i == 1 ? 2 : (i == 2 ? 0 : 1);                   // Fat = haut, Bright = bas, Off = milieu
+}
+
+float LeverSwitch::valueOf (int f) const
+{
+    if (! three) return f >= 1 ? 1.0f : 0.0f;
+    return f == 2 ? 1.0f : (f == 0 ? 2.0f : 0.0f);
 }
 
 void LeverSwitch::tick (double now)
@@ -101,23 +115,27 @@ void LeverSwitch::paint (Graphics& g)
     g.drawImage (strip, 0, 0, getWidth(), getHeight(), 0, shownFrame * fs, fs, fs);
 }
 
-void LeverSwitch::moveTo (int np)
+void LeverSwitch::moveTo (int nf)
 {
-    np = jlimit (0, 1, np);
-    if (np == pos) return;
-    attachment.setValueAsCompleteGesture ((float) np);
+    nf = jlimit (0, 2, nf);
+    if (nf == frame) return;
+    attachment.setValueAsCompleteGesture (valueOf (nf));
     if (onUserChange) onUserChange();
 }
 
 void LeverSwitch::mouseDown (const MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) { if (onRightClick) onRightClick(); return; }
-    moveTo (1 - pos);
+    if (! three) { moveTo (frame == 0 ? 2 : 0); return; }
+    // 3 positions : clic dans la moitie haute = un cran vers le haut, moitie basse = un cran vers le bas
+    moveTo (e.y < getHeight() / 2 ? frame + 1 : frame - 1);
 }
 
 void LeverSwitch::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
 {
-    if (std::abs (w.deltaY) > 0.0f) moveTo (w.deltaY > 0 ? 1 : 0);
+    if (std::abs (w.deltaY) <= 0.0f) return;
+    if (! three) moveTo (w.deltaY > 0 ? 2 : 0);
+    else         moveTo (frame + (w.deltaY > 0 ? 1 : -1));
 }
 
 //==============================================================================
@@ -171,7 +189,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     : AudioProcessorEditor (&p), proc (p),
       crunchSwitch (*p.apvts.getParameter ("crunch")),
       scoopSwitch  (*p.apvts.getParameter ("scoop")),
-      octaveSwitch (*p.apvts.getParameter ("octave")),
+      octaveSwitch (*p.apvts.getParameter ("octave"), true),
       footswitch   (*p.apvts.getParameter ("active"))
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
@@ -365,7 +383,11 @@ String PickleAudioProcessorEditor::buildStatusLine() const
     if (i < 3)            return id + "  " + String (roundToInt (v * 10.0f)) + " %";
     if (id == "crunch")   return v > 0.5f ? "crunch up (open)" : "crunch down (classic)";
     if (id == "scoop")    return v > 0.5f ? "scoop up (deep cut)" : "scoop down (classic)";
-    if (id == "octave")   return v > 0.5f ? "octave up on" : "octave off";
+    if (id == "octave")
+    {
+        const int o = roundToInt (v);
+        return o == 1 ? "octave up fat" : (o == 2 ? "octave up bright" : "octave off");
+    }
     if (id == "gate")     return "noise gate " + PickleAudioProcessor::gateNames()[jlimit (0, 3, roundToInt (v))].toLowerCase();
     return v > 0.5f ? "effect on" : "bypass";
 }

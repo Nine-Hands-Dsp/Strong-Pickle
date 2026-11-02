@@ -24,6 +24,8 @@
 //     sur un vrai circuit, une part du fondamental reste) attaque deux diodes Schottky sur une charge commune : redressement double alternance
 //     -> la frequence double (octave au-dessus), puis la fuzz l'ecrete. Calcule a 4x (le redressement cree
 //     des harmoniques aigues). Seuil des diodes : fins de notes crachotantes, typiques de ces pedales.
+//     v1.4 : inverseur 3 positions comme l'Ultimate Octave : haut = Fat (liaison 15 nF), milieu = off,
+//     bas = Bright (liaison 1 nF : octave plus fine et plus percante).
 //
 // Le grain, la compression, la dissymetrie et les crachotements de fin de note viennent du circuit
 // (polarisation des transistors, charge des condensateurs de 1 uF des diodes), sans courbe ajoutee.
@@ -208,7 +210,7 @@ namespace pickle
     {
         float loudness = 5.0f, sustain = 5.0f, filter = 5.0f;   // 0..10 comme sur la pedale
         bool  crunch = false, scoop = false;                    // inverseurs : false = bas (Swollen Pickle classique)
-        bool  octave = false;                                   // ajout Strong Pickle : octave au-dessus (Fulltone Ultimate Octave)
+        int   octave = 0;                                       // ajout Strong Pickle : 0 off, 1 Fat, 2 Bright (Fulltone Ultimate Octave)
         bool  active = true;
         int   gate = 0;                                         // ajout Strong Pickle : 0 = off (defaut), 1 leger, 2 moyen, 3 fort
     };
@@ -251,7 +253,14 @@ namespace pickle
             else       { tone.rLp = 39e3; tone.cLp = 10e-9; tone.cHp = 4e-9;   tone.rHp = 22e3; }
             tone.setPosition (pos);
         }
-        void setOctave (bool on) { octave = on; dcOct.z = 0.0f; octLp.z1 = octLp.z2 = 0.0; }
+        // OCTAVE : 0 off, 1 Fat, 2 Bright. Inverseur Fat / Bright de l'Ultimate Octave : condensateur de liaison
+        // apres le redresseur 15 nF (Fat) ou 1 nF (Bright) sur ~100 k -> passe-haut a ~106 Hz ou ~1,6 kHz.
+        void setOctave (int mode)
+        {
+            octave = mode > 0;
+            dcOct.setLP (srO, mode == 2 ? 1.0 / (2 * pi * 100e3 * 1e-9) : 1.0 / (2 * pi * 100e3 * 15e-9));
+            dcOct.z = 0.0f; octLp.z1 = octLp.z2 = 0.0;
+        }
 
         // une diode Schottky sur la charge commune : demi-alternance au genou doux (k)
         static inline float diodeHalf (float u) noexcept
@@ -384,7 +393,7 @@ namespace pickle
                     for (int c = 0; c < nCh; ++c) ch[c].setTone (filterPos (fi), curScoop);
 
                 const float atten = dbToGain (sustainDb (su));
-                const float out = dbToGain (loudnessDb (ld) + outTrim + (curCrunch ? crunchTrim : 0.0f) + (curOct ? octTrim : 0.0f)) * sVoice.s2;
+                const float out = dbToGain (loudnessDb (ld) + outTrim + (curCrunch ? crunchTrim : 0.0f) + (curOct == 1 ? octTrim : (curOct == 2 ? octTrimBright : 0.0f))) * sVoice.s2;
 
                 float gg = 1.0f;
                 if (p.gate > 0)
@@ -417,7 +426,8 @@ namespace pickle
 
         float outTrim = -3.0f;      // calibrage : SUSTAIN / FILTER / LOUDNESS a midi ~ +4,5 dB au-dessus du bypass (tests/test_dsp.cpp)
         float crunchTrim = 0.0f;    // CRUNCH haut : le circuit est naturellement plus fort
-        float octTrim = 1.5f;       // OCTAVE : meme volume percu qu'en fuzz seule (tests)
+        float octTrim = 1.5f;       // OCTAVE Fat : meme volume percu qu'en fuzz seule (tests)
+        float octTrimBright = 1.5f; // OCTAVE Bright
 
     private:
         static inline float safety (float x) noexcept
@@ -438,7 +448,7 @@ namespace pickle
         int dryPos = 0, dryDelay = 32;
         Channel ch[maxChannels];
         Smooth2 sLoud, sSus, sFil, sActive, sVoice;
-        bool curCrunch = false, curScoop = false, curOct = false;
+        bool curCrunch = false, curScoop = false; int curOct = 0;
         bool first = true;
         unsigned counter = 0;
     };

@@ -229,6 +229,50 @@ fs = frames[0].shape[0]
 strip = np.concatenate(frames, axis=0)
 Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
+# ------------------------------------------------------------------ 6b. motif du cornichon sur la coque (v1.4, design fourni)
+# design/source/strong_pickle_visuel_motif.jpg = la pedale avec le dessin du cornichon (trait creme). Le dessin est
+# extrait par difference avec ce fond (recale : matrice affine mesuree par correlation ECC), agrandi, son contour est
+# rendu net (le visuel est 2,3 fois moins defini que le fond), puis il est peint a l'encre creme des etiquettes,
+# avec le grain de la peinture. Jamais sur les potards, inverseurs, footswitch, LED, ecran, barre de presets, ni sur les
+# lettres deja creme (etiquettes, STRONG / PICKLE / FUZZ).
+MOTIF = os.path.join(ROOT, 'design', 'source', 'strong_pickle_visuel_motif.jpg')
+P2R = np.array([[1.87032343e+00, -3.46272783e-04, 1.19107749e+02],
+                [6.66725997e-04, 1.86938975e+00, -9.17126969e+00]], np.float64)   # px du visuel motif -> px du fond
+img_pre_motif = img.copy()
+if os.path.exists(MOTIF):
+    Mph = cv2.cvtColor(cv2.imread(MOTIF), cv2.COLOR_BGR2RGB).astype(np.float32)
+    hP, wP = Mph.shape[:2]
+    bgP = cv2.warpAffine(img, P2R, (wP, hP), flags=cv2.INTER_AREA | cv2.WARP_INVERSE_MAP)
+    Rp, Gp, Bp = Mph[..., 0], Mph[..., 1], Mph[..., 2]
+    cream = np.clip((Rp - bgP[..., 0] - 30.0) / 70.0, 0, 1) * np.clip((45.0 - (Gp - Rp)) / 20.0, 0, 1)
+    cream *= np.clip((bgP[..., 1] - bgP[..., 0] - 25.0) / 20.0, 0, 1)     # seulement sur la peinture verte du fond
+    Hb, Wb = img.shape[:2]
+    al = cv2.warpAffine(cream, P2R, (Wb, Hb), flags=cv2.INTER_CUBIC)
+    al = cv2.GaussianBlur(np.clip(al, 0, 1), (0, 0), 1.0)
+    al = np.clip((al - 0.36) / 0.28, 0, 1); al = al * al * (3 - 2 * al)     # contour net (epaisseur du trait du visuel)
+    yyb, xxb = np.mgrid[0:Hb, 0:Wb].astype(np.float32)
+    keep = np.ones((Hb, Wb), np.float32)
+    def _hole(cx, cy, r, soft=6.0):
+        global keep
+        keep *= np.clip((np.hypot(xxb - cx, yyb - cy) - r) / soft, 0, 1)
+    for (cx, cy, R) in KNOBS: _hole(U(cx) * PX, U(cy) * PX, U(R) * PX * 1.10)
+    for (cx, cy) in TOGGLES: _hole(U(cx) * PX, U(cy) * PX, 52)
+    _hole(U(LED[0]) * PX, U(LED[1]) * PX, 40)
+    _hole(U(FOOT[0]) * PX, U(FOOT[1]) * PX, U(FOOT_R) * PX * 1.28)
+    for (bx_, by_, bw_, bh_) in (STATUS_BOX, PRESET_BOX):
+        x0_, y0_, x1_, y1_ = U(bx_) * PX - 8, U(by_) * PX - 8, U(bx_ + bw_) * PX + 8, U(by_ + bh_) * PX + 8
+        keep *= 1 - ((xxb > x0_) & (xxb < x1_) & (yyb > y0_) & (yyb < y1_)).astype(np.float32)
+    al *= keep
+    n_, lab_, st_, _ = cv2.connectedComponentsWithStats((al > 0.5).astype(np.uint8), 8)
+    small = np.zeros(n_, bool); small[1:] = st_[1:, 4] < 18                  # poussieres isolees
+    al *= ~cv2.dilate(small[lab_].astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    inkm = np.array([200, 198, 152], np.float32)                               # creme du trait (mesure sur le visuel)
+    grain_ = img - cv2.GaussianBlur(img, (0, 0), 3.0)
+    shade = cv2.GaussianBlur(img.mean(-1), (0, 0), 60.0); shade = (shade / np.median(shade[keep > 0.5]))[..., None]
+    ink_ = np.clip(inkm * np.clip(shade, 0.75, 1.15) + 0.4 * grain_, 0, 255)
+    img = img * (1 - 0.88 * al[..., None]) + ink_ * (0.88 * al[..., None])
+    print('motif : %d px de trait' % int((al > 0.5).sum()))
+
 # ------------------------------------------------------------------ 7. « PICKLE » qui s'allume en vert quand l'effet est actif
 # Les lettres creme du visuel deviennent des lettres lumineuses vertes (coeur clair, bord sature),
 # avec un halo serre et une lueur douce sur la peinture autour. Calque RGBA (alpha = lumiere seule),
@@ -241,7 +285,7 @@ gA = A.mean(-1); sA = A.max(-1) - A.min(-1)
 px0, py0 = int(round(U(bx - 26) * PX)), int(round(U(by - 26) * PX))      # coin du calque sur un pixel entier
 pw, ph = int(round(U(bw + 52) * PX)), int(round(U(bh + 52) * PX))
 PKU = (px0 / PX, py0 / PX, pw / PX, ph / PX)                               # rectangle du calque (unites)
-reg_ = img[py0:py0 + ph, px0:px0 + pw]
+reg_ = img_pre_motif[py0:py0 + ph, px0:px0 + pw]      # masque des lettres sans le motif
 lum_ = reg_.mean(-1); sat_ = reg_.max(-1) - reg_.min(-1)
 yy_, xx_ = np.mgrid[0:ph, 0:pw]
 inside_ = (xx_ >= (U(bx) * PX - px0)) & (xx_ < (U(bx + bw) * PX - px0)) & (yy_ >= (U(by) * PX - py0)) & (yy_ < (U(by + bh) * PX - py0))
@@ -359,17 +403,21 @@ _, _, ps = _patch(sx, sy)
 x0t, y0t, pt = _patch(tx, ty)
 corr = np.median(pt[ann], axis=0) - np.median(ps[ann], axis=0)      # teinte locale de la peinture
 pt[:] = pt * (1 - mk9[..., None]) + (ps + corr) * mk9[..., None]
-# etiquette
-lab = _render_label('OCTAVE', 'BarlowCondensed-Bold.ttf', 24.5, 3.2).astype(np.float32) / 255.0
-lab = cv2.GaussianBlur(lab, (0, 0), 0.55)
-lh, lw = lab.shape
-ly0 = int(round(ty + (849.0 - sy) - lh / 2.0)); lx0 = int(round(tx - lw / 2.0))
-reg9 = img[ly0:ly0 + lh, lx0:lx0 + lw]
+# etiquettes : OCTAVE sous l'inverseur (comme CRUNCH / SCOOP), FAT au-dessus et BRIGHT en dessous du levier
+# (positions de l'inverseur Fat / Bright de l'Ultimate Octave ; milieu = sans octave)
 inkc = np.array([160, 181, 136], np.float32)
-grain = reg9 - cv2.GaussianBlur(reg9, (0, 0), 3.0)                  # grain de la peinture garde dans les lettres
-reg9[:] = reg9 * (1 - 0.95 * lab[..., None]) + (inkc + 0.35 * grain) * (0.95 * lab[..., None])
+def _label(text, cx, cy, cap):
+    lab = _render_label(text, 'BarlowCondensed-Bold.ttf', cap, cap * 0.13).astype(np.float32) / 255.0
+    lab = cv2.GaussianBlur(lab, (0, 0), 0.55)
+    lh, lw = lab.shape
+    ly0 = int(round(cy - lh / 2.0)); lx0 = int(round(cx - lw / 2.0))
+    reg9 = img[ly0:ly0 + lh, lx0:lx0 + lw]
+    grain = reg9 - cv2.GaussianBlur(reg9, (0, 0), 3.0)               # grain de la peinture garde dans les lettres
+    reg9[:] = reg9 * (1 - 0.95 * lab[..., None]) + (inkc + 0.35 * grain) * (0.95 * lab[..., None])
+    return (lx0, ly0, lw, lh)
+print('etiquettes', _label('OCTAVE', tx, ty + (849.0 - sy), 24.5), _label('FAT', tx, ty - 70, 18.0), _label('BRIGHT', tx, ty + 70, 18.0))
 OCTU = (U(OCT_V[0]), U(OCT_V[1]))
-print('octave : inverseur', OCTU, 'etiquette', (lx0, ly0, lw, lh))
+print('octave : inverseur', OCTU)
 
 # ------------------------------------------------------------------ sorties
 Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)

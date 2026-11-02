@@ -3,7 +3,7 @@
 Fuzz au format pédale simple (référence de format : Echoflex / Doorn), reproduction de la
 **Way Huge Swollen Pickle Jumbo Fuzz MkIII** (WM41, série « Smalls »), fuzz de la famille Big Muff
 connue pour son grave énorme, sa réserve de volume et ses crachotements (« sputter ») à mi-course.
-Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Studio Wiga (`design/source/strong_pickle_visuel.png`), intégré tel quel.
+Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Studio Wiga (`design/source/strong_pickle_visuel.png`), intégré tel quel ; motif du cornichon pris sur `design/source/strong_pickle_visuel_motif.jpg` (v1.4).
 
 ## Installation via GitHub
 
@@ -25,7 +25,7 @@ Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Stud
 | SCOOP (inverseur) | Creuse les médiums | Bas = voix classique (creux ≈ −5 dB vers 800 Hz) ; haut = valeurs écartées 22 nF / 2,2 nF, creux ≈ −12 dB |
 | CRUNCH (inverseur) | Change l'intensité de la compression | Bas = diodes directes (fuzz dense, compressée) ; haut = 8,2 k en série avec les diodes : fuzz plus ouverte, granuleuse et dynamique, +2 à 3 dB |
 | Les deux inverseurs en bas | La Swollen Pickle « trois potards » classique | Preset 1 *Classic Pickle* |
-| OCTAVE (inverseur, ajout) | Octave au-dessus, façon Fulltone Ultimate Octave | Haut = déphaseur + 2 diodes Schottky (redressement double alternance) entre Q1 et Sustain, puis la fuzz ; preset 13 *Octave Lead* |
+| OCTAVE (inverseur 3 positions, ajout) | Octave au-dessus, façon Fulltone Ultimate Octave | Milieu = sans octave ; haut = **Fat** (liaison 15 nF), bas = **Bright** (liaison 1 nF) : déphaseur + 2 diodes Schottky (redressement double alternance) entre Q1 et Sustain, puis la fuzz ; preset 13 *Octave Lead* |
 | Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons 150 / 100 nF : grave plein mais serré |
 | Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour ; le mot **PICKLE** s'allume en vert quand l'effet est actif (même fondu) |
 | Noise gate (ajout) | — | Clic droit > *Noise gate* : Off (défaut, comme la pédale) / Light / Medium / Strong |
@@ -54,6 +54,7 @@ Depuis la v1.3.1, **aucun CC n'est assigné d'office** (Loudness, Sustain, Filte
 chaque commande s'assigne par le MIDI Learn ; « Clear all MIDI assignments » efface tout. Les CC 20 à 26 enregistrés
 dans les projets des versions précédentes (assignations d'usine) sont ignorés à l'ouverture.
 Pour un potard appris sur un CC de 0 à 31, le CC n+32 est lu comme poids faible 14 bits.
+Octave par MIDI : 0-42 = sans octave, 43-84 = Fat, 85-127 = Bright.
 
 | Message | Fonction |
 |---|---|
@@ -66,7 +67,7 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 ## Presets d'usine
 
 1. Classic Pickle · 2. Siamese Dream · 3. Smooth Low Fuzz · 4. Sputter Zone · 5. Open Crunch · 6. Scooped Power Chords ·
-7. Dark Wool · 8. Bright Lead · 9. Amp Pusher · 10. Bass Pickle · 11. Doom Sludge · 12. 7 Words (Deftones, intro de *7 Words*)
+7. Dark Wool · 8. Bright Lead · 9. Amp Pusher · 10. Bass Pickle · 11. Doom Sludge · 12. 7 Words (Deftones, intro de *7 Words*) · 13. Octave Lead (octave Fat)
 
 ## Fichiers
 
@@ -87,3 +88,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.2.4 : jack OUT (gauche) ramené exactement à la taille du jack IN (droite), même hauteur, toujours contre le bord du boîtier
 - v1.3.0 : inverseur OCTAVE (octave au-dessus d'après la Fulltone Ultimate Octave : déphaseur + redresseur Schottky avant la fuzz, à 4x), CC 26, preset 13 « Octave Lead »
 - v1.3.1 : plus aucune assignation MIDI par défaut (CC 20-26 retirés, y compris ceux enregistrés dans les anciens projets) ; MIDI Learn sur chaque commande, « Clear all MIDI assignments »
+- v1.4.0 : motif du cornichon sur la coque (design fourni, trait crème redessiné net) ; inverseur OCTAVE à 3 positions comme l'Ultimate Octave : haut = Fat (15 nF), milieu = off, bas = Bright (1 nF)

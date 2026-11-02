@@ -34,7 +34,13 @@ int main (int argc, char** argv)
     shot ("pickle_crunch",  4, true,  false, PickleAudioProcessorEditor::baseH);
     shot ("pickle_scoop",   5, true,  false, PickleAudioProcessorEditor::baseH);
     shot ("pickle_bypass",  6, false, false, PickleAudioProcessorEditor::baseH);
-    shot ("pickle_octave", 12, true,  false, PickleAudioProcessorEditor::baseH);
+    shot ("pickle_octave", 12, true,  false, PickleAudioProcessorEditor::baseH);           // Fat (haut)
+    {
+        proc.applyFactoryPreset (12); proc.setParamValue ("octave", 2.0f); pump (20);         // Bright (bas)
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+        File f (out + "/pickle_octave_bright.png"); f.deleteFile();
+        FileOutputStream os (f); PNGImageFormat().writeImageToStream (img, os);
+    }
 
     // test pedale d'expression : course 2..116 sur CC 21 (sustain)
     {

@@ -99,7 +99,7 @@ int main()
             for (size_t i = a; i < o.size(); ++i) { const double ph = 2 * pi * f * (double) i / SR; cs += o[i] * std::cos (ph); sn += o[i] * std::sin (ph); }
             return 20 * std::log10 (2.0 * std::sqrt (cs * cs + sn * sn) / (double) (o.size() - a) + 1e-12);
         };
-        for (int oc = 0; oc < 2; ++oc)
+        for (int oc = 0; oc < 3; ++oc)          // 0 off, 1 Fat, 2 Bright
         {
             Params q; q.sustain = 7.5f; q.filter = 6.5f; q.octave = oc;
             auto o = run (q, in);

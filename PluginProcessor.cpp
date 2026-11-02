@@ -21,7 +21,7 @@ static const PicklePreset factoryPresets[] =
     { "Bass Pickle",             5.0f, 4.0f, 3.5f, 0, 0 },
     { "Doom Sludge",             6.0f, 10.f, 3.0f, 0, 1 },
     { "7 Words",                 5.0f, 6.0f, 6.0f, 1, 0 },   // Deftones, intro de 7 Words (Adrenaline) : riff hache, epais et net, mediums presents
-    { "Octave Lead",             5.0f, 7.5f, 6.5f, 0, 0, 1 },// OCTAVE : octave au-dessus facon Ultimate Octave, micro manche apres la 12e case
+    { "Octave Lead",             5.0f, 7.5f, 6.5f, 0, 0, 1 },// OCTAVE Fat : octave au-dessus facon Ultimate Octave, micro manche apres la 12e case
 };
 
 int PickleAudioProcessor::getNumFactoryPresets() { return (int) std::size (factoryPresets); }
@@ -47,7 +47,7 @@ const PickleAudioProcessor::LearnDef& PickleAudioProcessor::learnDef (int i)
         { "crunch",   "Crunch",     ccCrunch,   learnToggle },      // >= 64 : haut
         { "scoop",    "Scoop",      ccScoop,    learnToggle },      // >= 64 : haut
         { "active",   "Footswitch", ccBypassFs, learnFootswitch },
-        { "octave",   "Octave",     ccOctave,   learnToggle },      // >= 64 : octave
+        { "octave",   "Octave",     ccOctave,   learnToggle },      // 0-42 Off, 43-84 Fat, 85-127 Bright
     };
     return defs[jlimit (0, numLearn - 1, i)];
 }
@@ -93,7 +93,7 @@ AudioProcessorValueTreeState::ParameterLayout PickleAudioProcessor::createLayout
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "midiFsMode", 1 }, "MIDI Footswitch Mode",
                                                          StringArray { "Latching (127 / 0)", "Momentary (toggle)" }, 0));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "gate", 1 }, "Noise Gate", gateNames(), 0));
-    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "octave", 1 }, "Octave", d.octave != 0));
+    p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "octave", 1 }, "Octave", octaveNames(), d.octave));
     return { p.begin(), p.end() };
 }
 
@@ -218,7 +218,12 @@ void PickleAudioProcessor::handleMidi (MidiBuffer& midi)
                 if (ramps[lsbOf].msb >= 0)
                     knobFromCC (lsbOf, (float) (ramps[lsbOf].msb * 128 + v) / 16383.0f);   // CC 14 bits
             }
-            else if (ctl == 3 || ctl == 4 || ctl == 6)
+            else if (ctl == 6)
+            {
+                setParamFromAudio (ctl, v < 43 ? 0.0f : (v < 85 ? 1.0f : 2.0f));   // 0-42 Off, 43-84 Fat, 85-127 Bright
+                currentPreset = -1;
+            }
+            else if (ctl == 3 || ctl == 4)
             {
                 setParamFromAudio (ctl, v >= 64 ? 1.0f : 0.0f);
                 currentPreset = -1;
@@ -280,7 +285,7 @@ void PickleAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&
     }
     p.crunch = rawAt (rCrunch) > 0.5f;
     p.scoop  = rawAt (rScoop) > 0.5f;
-    p.octave = rawAt (rOctave) > 0.5f;
+    p.octave = jlimit (0, 2, roundToInt (rawAt (rOctave)));
     p.active = rawAt (rActive) > 0.5f;
     p.gate   = jlimit (0, 3, roundToInt (rawAt (rGate)));
 
