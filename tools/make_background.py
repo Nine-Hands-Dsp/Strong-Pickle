@@ -230,62 +230,30 @@ strip = np.concatenate(frames, axis=0)
 Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
 # ------------------------------------------------------------------ 6b. motif du cornichon sur la coque (v1.4, design fourni)
-# design/source/strong_pickle_visuel_motif.jpg = la pedale avec le dessin du cornichon (trait creme). Le dessin est
-# extrait par difference avec ce fond (recale : matrice affine mesuree par correlation ECC), agrandi, son contour est
-# rendu net (le visuel est 2,3 fois moins defini que le fond), puis il est peint a l'encre creme des etiquettes,
-# avec le grain de la peinture. Jamais sur les potards, inverseurs, footswitch, LED, ecran, barre de presets, ni sur les
-# lettres deja creme (etiquettes, STRONG / PICKLE / FUZZ).
-MOTIF = os.path.join(ROOT, 'design', 'source', 'strong_pickle_visuel_motif.jpg')
-P2R = np.array([[1.87032343e+00, -3.46272783e-04, 1.19107749e+02],
-                [6.66725997e-04, 1.86938975e+00, -9.17126969e+00]], np.float64)   # px du visuel motif -> px du fond
+# design/source/strong_pickle_motif_seul.png = le dessin seul (trait creme sur fond gris), fourni par Studio Wiga.
+# Il est recale exactement sur le visuel de reference (design/source/strong_pickle_visuel_motif.jpg : matrice affine
+# mesuree par correlation ECC), puis (v1.4.1) reduit de 12 % autour de son coin bas gauche et descendu de 12 unites.
+# Le trait est agrandi, son contour rendu net, puis peint a l'encre creme avec le grain de la peinture. Il passe
+# derriere les potards, inverseurs, LED, footswitch et le mot PICKLE, ne touche pas les etiquettes, et se voit assombri
+# a travers l'ecran et la barre de presets (cadres semi-transparents, comme sur le visuel).
+MOTIF = os.path.join(ROOT, 'design', 'source', 'strong_pickle_motif_seul.png')
+D2R = np.array([[1.86915143e+00, -1.23193610e-03, 1.20031790e+02],
+                [1.90879829e-03, 1.87041721e+00, -1.02747300e+01]], np.float64)   # px du dessin seul -> px du fond
 img_pre_motif = img.copy()
 if os.path.exists(MOTIF):
-    Mph = cv2.cvtColor(cv2.imread(MOTIF), cv2.COLOR_BGR2RGB).astype(np.float32)
-    hP, wP = Mph.shape[:2]
-    bgP = cv2.warpAffine(img, P2R, (wP, hP), flags=cv2.INTER_AREA | cv2.WARP_INVERSE_MAP)
-    Rp, Gp, Bp = Mph[..., 0], Mph[..., 1], Mph[..., 2]
-    cream = np.clip((Rp - bgP[..., 0] - 18.0) / 55.0, 0, 1) * np.clip((50.0 - (Gp - Rp)) / 20.0, 0, 1)
-    cream *= np.clip((bgP[..., 1] - bgP[..., 0] - 8.0) / 14.0, 0, 1)      # seulement sur la peinture verte du fond (ombres comprises)
+    Dm = cv2.cvtColor(cv2.imread(MOTIF), cv2.COLOR_BGR2RGB).astype(np.float32)
+    bgc = np.median(Dm.reshape(-1, 3), 0)                                       # gris du fond du dessin
+    aP = np.clip((Dm[..., 0] - bgc[0] - 10.0) / 45.0, 0, 1) * np.clip((Dm[..., 0] - Dm[..., 2] - (bgc[0] - bgc[2]) - 2.0) / 22.0, 0, 1)
+    aP = np.clip(aP * 1.35, 0, 1)                                              # traits fins de l'interieur gardes
     Hb, Wb = img.shape[:2]
-    # dans l'ecran et la barre de presets (cadres semi-transparents) le trait se voit, assombri : on reporte
-    # l'ecart du visuel au fond (sans les textes du visuel, plus clairs)
-    dP = Mph - bgP
-    txt = cv2.dilate((Rp > 118).astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool)
-    lineb = np.clip((dP[..., 0] - 7.0) / 22.0, 0, 1) * np.clip((40.0 - (Gp - Rp)) / 20.0, 0, 1) * (~txt)
-    boxP = np.zeros((hP, wP), np.float32)
-    for (bx_, by_, bw_, bh_) in (STATUS_BOX, PRESET_BOX):
-        q = cv2.invertAffineTransform(P2R)
-        for (u0, v0, u1, v1) in [(U(bx_) * PX + 3, U(by_) * PX + 3, U(bx_ + bw_) * PX - 3, U(by_ + bh_) * PX - 3)]:
-            a0 = q @ np.array([u0, v0, 1.0]); a1 = q @ np.array([u1, v1, 1.0])
-            boxP[int(a0[1]):int(a1[1]), int(a0[0]):int(a1[0])] = 1.0
-    # trait complet : sur la peinture + dans les cadres (renforce) : la reduction du dessin ne laisse pas de trous
-    aP = np.maximum(cream * (1 - boxP), np.clip(lineb * boxP * 1.8, 0, 1))
-    # parties du dessin cachees sur le visuel (potards, inverseurs, LED, footswitch, etiquettes, textes) : une fois le
-    # dessin reduit et descendu, elles tomberaient sur la peinture -> le trait y est prolonge (inpainting du trait)
-    yyP, xxP = np.mgrid[0:hP, 0:wP].astype(np.float32)
-    qi = cv2.invertAffineTransform(P2R); sP = 1.0 / P2R[0, 0]
-    occP = np.zeros((hP, wP), np.uint8)
-    def _occ(cx, cy, r):
-        global occP
-        c = qi @ np.array([cx, cy, 1.0]); occP |= (np.hypot(xxP - c[0], yyP - c[1]) < r * sP).astype(np.uint8)
-    for (cx, cy, R_) in KNOBS: _occ(U(cx) * PX, U(cy) * PX, U(R_) * PX * 1.08)
-    for (cx, cy) in TOGGLES: _occ(U(cx) * PX, U(cy) * PX, 46)
-    _occ(U(LED[0]) * PX, U(LED[1]) * PX, 26)
-    _occ(U(FOOT[0]) * PX, U(FOOT[1]) * PX, U(FOOT_R) * PX * 1.22)
-    crP = ((bgP[..., 0] > 105) & ((bgP[..., 1] - bgP[..., 0]) < 45) & ((bgP[..., 0] - bgP[..., 2]) > 8)).astype(np.uint8)
-    occP |= cv2.dilate(crP, np.ones((5, 5), np.uint8))
-    occP |= (txt & (boxP > 0)).astype(np.uint8)
-    a8 = (np.clip(aP, 0, 1) * 255).astype(np.uint8); a8[occP > 0] = 0
-    aP = cv2.inpaint(a8, occP, 4, cv2.INPAINT_TELEA).astype(np.float32) / 255.0
-    al = cv2.warpAffine(aP, P2R, (Wb, Hb), flags=cv2.INTER_CUBIC)
-    # v1.4.1 : cornichon un peu plus petit et un peu plus bas (demande) : mise a l'echelle autour de son centre
-    MOTIF_SCALE, MOTIF_DY = float(os.environ.get('MOTIF_SCALE', 0.88)), float(os.environ.get('MOTIF_DY', 12.0)) * PX           # echelle autour du coin bas gauche du dessin, puis descente de 12 unites
+    al = cv2.warpAffine(aP, D2R, (Wb, Hb), flags=cv2.INTER_CUBIC)
+    MOTIF_SCALE, MOTIF_DY = float(os.environ.get('MOTIF_SCALE', 0.88)), float(os.environ.get('MOTIF_DY', 12.0)) * PX
     ys_, xs_ = np.where(al > 0.3)
     mcx, mcy = float(np.percentile(xs_, 0.5)), float(np.percentile(ys_, 99.5))
     Tm = np.array([[MOTIF_SCALE, 0, mcx - MOTIF_SCALE * mcx], [0, MOTIF_SCALE, mcy - MOTIF_SCALE * mcy + MOTIF_DY]], np.float64)
     al = cv2.warpAffine(al, Tm, (Wb, Hb), flags=cv2.INTER_CUBIC)
     al = cv2.GaussianBlur(np.clip(al, 0, 1), (0, 0), 1.0)
-    al = np.clip((al - 0.36) / 0.28, 0, 1); al = al * al * (3 - 2 * al)     # contour net (epaisseur du trait du visuel)
+    al = np.clip((al - 0.36) / 0.28, 0, 1); al = al * al * (3 - 2 * al)     # contour net
     yyb, xxb = np.mgrid[0:Hb, 0:Wb].astype(np.float32)
     keep = np.ones((Hb, Wb), np.float32)
     def _hole(cx, cy, r, soft=6.0):
@@ -310,7 +278,7 @@ if os.path.exists(MOTIF):
     n_, lab_, st_, _ = cv2.connectedComponentsWithStats((al > 0.5).astype(np.uint8), 8)
     small = np.zeros(n_, bool); small[1:] = st_[1:, 4] < 10                  # poussieres isolees
     al *= ~cv2.dilate(small[lab_].astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
-    inkm = np.array([200, 198, 152], np.float32)                               # creme du trait (mesure sur le visuel)
+    inkm = np.array([200, 196, 148], np.float32)                               # creme du trait (visuel de reference)
     grain_ = img - cv2.GaussianBlur(img, (0, 0), 3.0)
     shade = cv2.GaussianBlur(img.mean(-1), (0, 0), 60.0); shade = (shade / np.median(shade[keep > 0.5]))[..., None]
     ink_ = np.clip(inkm * np.clip(shade, 0.75, 1.15) + 0.4 * grain_, 0, 255)
