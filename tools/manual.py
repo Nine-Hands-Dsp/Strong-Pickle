@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1]
 OUT = sys.argv[2]
-VERSION = "1.2.4"
+VERSION = "1.3.0"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -38,7 +38,7 @@ marks = [  # numero, x, y (unites 760 x 958)
     (1, kn[0][0] - 62, kn[0][1] - 58), (2, kn[1][0] + 62, kn[1][1] - 58), (3, kn[2][0] + 58, kn[2][1] - 40),
     (4, tg[0][0] - 44, tg[0][1] - 20), (5, tg[1][0] + 44, tg[1][1] - 20),
     (6, 222, 478), (7, 212, 526), (8, 236, 615), (9, LAY["led"][0] + 32, LAY["led"][1]), (10, LAY["foot"][0] + 74, LAY["foot"][1]),
-    (11, 70, 470), (12, 690, 470)]
+    (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 44, LAY["octave"][1] - 22)]
 ann = src.copy(); dr = ImageDraw.Draw(ann)
 fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
 for n, x, y in marks:
@@ -63,6 +63,10 @@ box_on = (250, 560, 510, 740)
 on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
 # ecran + barre de presets
 bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548)).save(bar_img)
+# inverseur OCTAVE : en bas (off), en haut (octave)
+ox, oy = LAY["octave"]
+box_oc = (ox - 70, oy - 45, ox + 70, oy + 85)
+oc_img = strip([crop_u(src, box_oc), crop_u(shot("pickle_octave.png"), box_oc)], os.path.join(TMP, "pickle_octave_sw.png"))
 
 # ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
 a = np.asarray(src).astype(np.float32)
@@ -145,13 +149,14 @@ def table(rows, widths, header=True, small=False):
     t.setStyle(TableStyle(style)); return t
 
 # ---------- donnees (identiques au code livre : PluginProcessor.cpp) ----------
-FACTORY = [  # nom, loudness, sustain, filter, crunch, scoop
-    ("Classic Pickle",       5.0, 5.0, 5.0, 0, 0), ("Siamese Dream",        5.0, 7.0, 5.5, 0, 0),
-    ("Smooth Low Fuzz",      6.0, 2.5, 5.0, 0, 0), ("Sputter Zone",         5.5, 5.0, 5.5, 0, 0),
-    ("Open Crunch",          4.5, 6.0, 6.0, 1, 0), ("Scooped Power Chords", 5.0, 7.0, 5.0, 0, 1),
-    ("Dark Wool",            6.0, 6.0, 2.0, 0, 0), ("Bright Lead",          5.0, 8.5, 7.5, 1, 0),
-    ("Amp Pusher",           8.0, 1.5, 6.5, 1, 0), ("Bass Pickle",          5.0, 4.0, 3.5, 0, 0),
-    ("Doom Sludge",          6.0, 10.0, 3.0, 0, 1), ("7 Words",              5.0, 6.0, 6.0, 1, 0)]
+FACTORY = [  # nom, loudness, sustain, filter, crunch, scoop, octave
+    ("Classic Pickle",       5.0, 5.0, 5.0, 0, 0, 0), ("Siamese Dream",        5.0, 7.0, 5.5, 0, 0, 0),
+    ("Smooth Low Fuzz",      6.0, 2.5, 5.0, 0, 0, 0), ("Sputter Zone",         5.5, 5.0, 5.5, 0, 0, 0),
+    ("Open Crunch",          4.5, 6.0, 6.0, 1, 0, 0), ("Scooped Power Chords", 5.0, 7.0, 5.0, 0, 1, 0),
+    ("Dark Wool",            6.0, 6.0, 2.0, 0, 0, 0), ("Bright Lead",          5.0, 8.5, 7.5, 1, 0, 0),
+    ("Amp Pusher",           8.0, 1.5, 6.5, 1, 0, 0), ("Bass Pickle",          5.0, 4.0, 3.5, 0, 0, 0),
+    ("Doom Sludge",          6.0, 10.0, 3.0, 0, 1, 0), ("7 Words",              5.0, 6.0, 6.0, 1, 0, 0),
+    ("Octave Lead",          5.0, 7.5, 6.5, 0, 0, 1)]
 FACT_DESC = {
  "en": ["Both switches down, all knobs at noon: the classic three-knob Swollen Pickle.",
         "The guitars of Smashing Pumpkins' <i>Siamese Dream</i>: Billy Corgan recorded almost all its fuzz through a late-'70s op-amp Big Muff, more compressed than the transistor versions. Sustain at 2 o'clock, tone just past noon, mids barely scooped, compressed fuzz, volume matched to your clean sound. Double the rhythm part and pan it hard left / right.",
@@ -164,7 +169,8 @@ FACT_DESC = {
         "Little fuzz and a lot of volume, Crunch up: pushes an amp that is already overdriven, as metal producers do with the Swollen Pickle.",
         "Moderate sustain and a darker filter keep the low end of a bass (or a low-tuned guitar) round and full.",
         "Sustain full, scooped and dark: an endless wall for slow, heavy riffs.",
-        "The intro riff of Deftones' <i>7 Words</i> (<i>Adrenaline</i>, 1995): choppy, chunky and aggressive, but crisp and precise, as reviews of the record describe it. Sustain just past noon, Filter slightly bright, Crunch up for a more open, articulate attack, mids kept (Scoop down). Play it palm-muted and tight, into a high-gain amp."],
+        "The intro riff of Deftones' <i>7 Words</i> (<i>Adrenaline</i>, 1995): choppy, chunky and aggressive, but crisp and precise, as reviews of the record describe it. Sustain just past noon, Filter slightly bright, Crunch up for a more open, articulate attack, mids kept (Scoop down). Play it palm-muted and tight, into a high-gain amp.",
+        "Octave switch up, in the spirit of the Fulltone Ultimate Octave: high sustain and a slightly bright filter. Play single notes on the neck pickup, above the 12th fret, for the ring-modulator-like octave-up; chords turn into a gnarly, glitchy fuzz."],
  "fr": ["Les deux inverseurs en bas, tous les potards à midi : la Swollen Pickle classique à trois potards.",
         "Les guitares de <i>Siamese Dream</i> des Smashing Pumpkins : Billy Corgan a enregistré presque toutes les fuzz de l'album avec un Big Muff op-amp de la fin des années 70, plus compressé que les versions à transistors. Sustain vers 14 h, tone à peine au-dessus de midi, médiums juste un peu creusés, fuzz compressée, volume au niveau du son clair. Doublez la rythmique et panotez-la gauche / droite.",
         "Sustain vers 9 h : la fuzz lisse et ronde, juste avant la zone qui crachote.",
@@ -176,16 +182,19 @@ FACT_DESC = {
         "Peu de fuzz et beaucoup de volume, Crunch en haut : pour pousser un ampli déjà saturé, comme le font des producteurs metal avec la Swollen Pickle.",
         "Sustain modéré et filter plus sombre : le grave d'une basse (ou d'une guitare accordée bas) reste rond et plein.",
         "Sustain à fond, médiums creusés et son sombre : un mur sans fin pour les riffs lents et lourds.",
-        "Le riff d'intro de <i>7 Words</i> de Deftones (<i>Adrenaline</i>, 1995) : haché, épais et agressif, mais net et précis, comme le décrivent les critiques de l'album. Sustain juste après midi, Filter un peu brillant, Crunch en haut pour une attaque plus ouverte et articulée, médiums gardés (Scoop en bas). Jouez-le en palm mute, bien serré, dans un ampli à fort gain."]}
+        "Le riff d'intro de <i>7 Words</i> de Deftones (<i>Adrenaline</i>, 1995) : haché, épais et agressif, mais net et précis, comme le décrivent les critiques de l'album. Sustain juste après midi, Filter un peu brillant, Crunch en haut pour une attaque plus ouverte et articulée, médiums gardés (Scoop en bas). Jouez-le en palm mute, bien serré, dans un ampli à fort gain.",
+        "Inverseur Octave en haut, dans l'esprit de la Fulltone Ultimate Octave : beaucoup de sustain et un filter un peu brillant. Jouez des notes seules au micro manche, au-delà de la 12e case, pour l'octave au-dessus aux accents de modulateur en anneau ; les accords deviennent une fuzz rugueuse et chaotique."]}
 def pc(v): return f"{round(v * 10)} %"
 SW = {"en": ("down", "up"), "fr": ("bas", "haut")}
+OC = {"en": ("off", "on"), "fr": ("off", "on")}
 
 T = {
 "en": dict(
  lang="ENGLISH", sub="Jumbo fuzz &nbsp;·&nbsp; VST3 for Windows and macOS", ver="User manual &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Introduction",
  intro=["<b>STRONG PICKLE</b> is a Studio Wiga plugin modelled on the <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, \"Smalls\" series), a Big Muff-family fuzz known for its huge low end, its enormous volume reserve and its sputtery character halfway up the Sustain knob.",
-        "Since version 1.1 the circuit is modelled <b>component by component</b> and solved at every sample (Newton's method on the node voltages, 4x oversampling): a 2N3904 input stage, the Sustain divider, two 2N3904 clipping stages (470 k feedback, 330 pF Miller capacitor, 1N914 diodes in series with a 1 µF capacitor from collector to base, 150 nF / 100 nF coupling into 10 k: the low end is trimmed before the clipping, so the fuzz stays defined instead of smearing), the passive Filter tone stack, the output stage and Loudness. Nothing is added on top: the gain, the square-wave grain, the asymmetry, the way notes decay and sputter all come from the transistors and capacitors themselves. The coupling and tone values give the low end of the \"jumbo\" Pickle voice."],
+        "Since version 1.1 the circuit is modelled <b>component by component</b> and solved at every sample (Newton's method on the node voltages, 4x oversampling): a 2N3904 input stage, the Sustain divider, two 2N3904 clipping stages (470 k feedback, 330 pF Miller capacitor, 1N914 diodes in series with a 1 µF capacitor from collector to base, 150 nF / 100 nF coupling into 10 k: the low end is trimmed before the clipping, so the fuzz stays defined instead of smearing), the passive Filter tone stack, the output stage and Loudness. Nothing is added on top: the gain, the square-wave grain, the asymmetry, the way notes decay and sputter all come from the transistors and capacitors themselves. The coupling and tone values give the low end of the \"jumbo\" Pickle voice.",
+        "Strong Pickle adds an <b>OCTAVE</b> switch that the original pedal does not have, modelled on the octave-up circuit of the <b>Fulltone Ultimate Octave</b> (a descendant of the Foxx Tone Machine): a phase splitter drives two Schottky diodes that full-wave rectify the signal before the fuzz."],
  inst_t="2. Installation",
  inst=[("Windows", "Download the <b>StrongPickle-VST3-Windows</b> artifact from the Actions tab of the GitHub repository studiowiga/strong-pickle-, unzip it and copy the <b>Strong Pickle.vst3</b> folder into <b>C:\\Program Files\\Common Files\\VST3</b>."),
        ("macOS", "Download <b>StrongPickle-VST3-macOS</b>, unzip it and copy <b>Strong Pickle.vst3</b> into <b>~/Library/Audio/Plug-Ins/VST3</b>. If macOS blocks it, run <b>xattr -cr ~/Library/Audio/Plug-Ins/VST3/Strong\\ Pickle.vst3</b> in the Terminal. The binary is universal (Apple Silicon and Intel)."),
@@ -203,15 +212,18 @@ T = {
    ["9", "LED", "Yellow = effect on, off = bypass."],
    ["10", "Footswitch", "Effect on / bypass."],
    ["11", "OUT", "Output jack."],
-   ["12", "IN", "Input jack."]],
+   ["12", "IN", "Input jack."],
+   ["13", "OCTAVE switch", "Down = off, up = octave up (Ultimate Octave style)."]],
  ctl_t="4. Controls in detail",
  ctl=[("SUSTAIN", "Sets the gain of the circuit, from <b>18 dB</b> fully down to <b>62 dB</b> fully up (the figures of the Way Huge spec sheet). It is a divider between the input stage and the first clipping stage. The gain rises quickly at the start of the travel: around 8 to 10 o'clock the fuzz is round and still dynamic; around noon the two clipping stages are fully driven (square-wave fuzz); further up it becomes a dense wall of sustain. The level follows your picking and the notes decay naturally, without pumping."),
       ("FILTER", "The passive tone stack of the Big Muff family, with its real values: a low-pass branch (39 k / 10 nF), a high-pass branch (4 nF / 22 k) and the 100 k Filter pot between them. Fully down, the low end swells and the highs roll off; fully up, the low end thins out and the grain comes forward; around noon the two branches meet and leave the typical mid dip."),
       ("LOUDNESS", "Audio taper: 0 = muted, noon about 4 to 5 dB above the bypassed signal with Sustain and Filter at noon, and up to +12 dB more at the top: the huge volume reserve of the pedal. A safety limiter keeps the output under 0 dBFS."),
       ("CRUNCH switch", "Changes the compression of the clipping stages. <b>Down</b> (classic): the diodes sit directly in the feedback loop and clamp firmly: dense, sustaining fuzz. <b>Up</b>: an 8.2 k resistor is put in series with the diodes, the stages swing much further before the diodes take over: a more open, grainier and more dynamic fuzz, with sharper peaks and about 2 to 3 dB more level."),
       ("SCOOP switch", "<b>Down</b>: the classic voice, a mid dip of about 5 dB around 800 Hz with Filter at noon. <b>Up</b>: the tone stack uses wider-spaced values (22 nF and 2.2 nF), for a deep mid cut of about 12 dB, for huge power chords. The original documents disagree on the direction of the Scoop switch; the plugin follows the Way Huge manual (Scoop cuts the mids)."),
-      ("Both switches down", "This is the classic three-knob Swollen Pickle (preset 1, Classic Pickle).")],
+      ("Both switches down", "This is the classic three-knob Swollen Pickle (preset 1, Classic Pickle)."),
+      ("OCTAVE switch", "<b>Up</b>: the octave-up of the Fulltone Ultimate Octave. Between the input stage and Sustain, a phase splitter (collector and emitter outputs, slightly unbalanced as on a real circuit) drives two Schottky diodes into a common load: both halves of the wave are folded upwards, so the pitch doubles, one octave up, with a little of the original note left, then the fuzz clips it. The rectifier runs at 4x oversampling. It sounds best on single notes, neck pickup, above the 12th fret; low notes and chords give a rough, ring-modulated fuzz, and the diode threshold makes the end of the notes sputter, as on the hardware. The level is matched to the fuzz without octave. <b>Down</b>: Swollen Pickle without octave.")],
  sw_cap="Switches: both down (classic), Crunch up, Scoop up.",
+ oc_cap="Octave switch: down (off), up (octave up).",
  fs_t="5. Footswitch, LED and noise gate",
  fs=["<b>Footswitch</b>: it switches as soon as you press it and the cap darkens while held. In bypass, the dry signal is passed through, time-aligned with the oversampling latency reported to the DAW.",
      "<b>LED and PICKLE</b>: when the effect is on, the LED lights up yellow (the panel around it catches the light) and the word <b>PICKLE</b> lights up green; both fade in and out together.",
@@ -222,17 +234,18 @@ T = {
  midi_hdr=["Control", "Default CC", "Type"],
  midi=[["Loudness", "CC 20", "Continuous (0-127 = full travel)"], ["Sustain", "CC 21", "Continuous"], ["Filter", "CC 22", "Continuous"],
        ["Crunch", "CC 23", "Switch: 64 or more = up"], ["Scoop", "CC 24", "Switch: 64 or more = up"],
-       ["Footswitch", "CC 25", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"]],
- learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-25)</b>. The assignments are saved with the project.",
+       ["Footswitch", "CC 25", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"],
+       ["Octave", "CC 26", "Switch: 64 or more = octave up"]],
+ learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-26)</b>. The assignments are saved with the project.",
         "<b>Expression pedals</b>: movements are never stepped. Strong Pickle ramps to each new value over the time between two messages; the real travel of your pedal is learnt automatically (a pedal sending only 2 to 116 still reaches exactly 0 and 100 %). For a knob on CC 0 to 31, CC n+32 is read as its fine 14-bit part.",
-        "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 12</b> recall the factory presets. All parameters can also be automated in the DAW."],
+        "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 13</b> recall the factory presets. All parameters can also be automated in the DAW."],
  win_t="7. Window",
  win=["Strong Pickle uses the single pedal format of Echoflex and Doorn: the window opens at its default size and can never be made smaller. Right-click &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b> or <b>100 %</b> for this window, \"(default)\" marking the default size; <b>Default size (new windows)</b> chooses the size at which new Strong Pickle windows open (shared by all instances) and resizes the current one at once. You can also drag the bottom-right corner up to 150 % (proportions are kept).",
       "The <b>screen</b> shows the setting of the knob or switch you just moved (knobs in %, e.g. <i>sustain 64 %</i>, <i>crunch up (open)</i>); it appears when a setting moves and fades out after 2.5 s. It also shows the MIDI Learn messages. The <b>preset bar</b> under it always shows the current preset (or <i>Edited</i>) and the bypass state."],
  bar_cap="Screen and preset bar.",
  pre_t="8. Presets",
  pre=["Use the arrows of the preset bar, click its name, right-click anywhere, or use the preset menu of your DAW. Right-click &gt; <b>Save user preset</b> stores up to 9 presets of your own."],
- fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop", "Description"],
+ fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop · Octave", "Description"],
  tips_t="9. Tips",
  tips=["In Reaper place Strong Pickle <b>before</b> your amp simulator (for example before Two Notes Genome), with a clean or slightly crunchy amp, as you would with the real pedal.",
        "For a 7-string in G or lower tunings, keep Sustain under noon and Filter slightly down: the low strings stay defined instead of sputtering. Above noon, palm mutes turn into a wall.",
@@ -243,14 +256,15 @@ T = {
        ["Latency", "32 samples (oversampling filter), reported to the DAW"], ["Gain", "18 to 62 dB (Sustain)"],
        ["Filter", "passive tone stack 39 k / 10 nF and 4 nF / 22 k, 100 k pot; Scoop: deeper mid cut (about −12 dB)"],
        ["Loudness", "muted to +12 dB; noon ≈ +4.5 dB over bypass"],
-       ["Processing", "component-level circuit model (2N3904, 1N914), 4x oversampling, smoothed parameters"], ["CPU", "about 12 to 25 % of one core at 48 kHz (stereo), depending on the computer"],
-       ["MIDI", "all channels; MIDI Learn on the 6 controls (defaults CC 20-25), 14-bit CC, Program Change 1-12"],
+       ["Processing", "component-level circuit model (2N3904, 1N914; Octave: phase splitter and Schottky rectifier), 4x oversampling, smoothed parameters"], ["CPU", "about 12 to 25 % of one core at 48 kHz (stereo), depending on the computer"],
+       ["MIDI", "all channels; MIDI Learn on the 7 controls (defaults CC 20-26), 14-bit CC, Program Change 1-13"],
        ["Window", "60 % (default) / 75 % / 100 %, up to 150 %, never smaller than the default size; anti-freeze v2 under Windows"]]),
 "fr": dict(
  lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Présentation",
  intro=["<b>STRONG PICKLE</b> est un plugin Studio Wiga inspiré de la <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, série « Smalls »), une fuzz de la famille Big Muff connue pour son grave énorme, sa réserve de volume considérable et ses crachotements à mi-course du potard Sustain.",
-        "Depuis la version 1.1, le circuit est reproduit <b>composant par composant</b> et résolu à chaque échantillon (méthode de Newton sur les tensions des nœuds, sur-échantillonnage x4) : étage d'entrée à 2N3904, diviseur Sustain, deux étages d'écrêtage à 2N3904 (contre-réaction 470 k, condensateur Miller 330 pF, diodes 1N914 en série avec un condensateur de 1 µF entre collecteur et base, liaisons 150 nF / 100 nF sur 10 k : le grave est réduit avant l'écrêtage, la fuzz reste définie au lieu de baver), tone stack passif Filter, étage de sortie et Loudness. Rien n'est ajouté par-dessus : le gain, le grain carré, la dissymétrie, la façon dont les notes s'éteignent et crachotent viennent des transistors et des condensateurs eux-mêmes. Les valeurs de liaison et de tonalité donnent le grave de la voix « jumbo » de la Pickle."],
+        "Depuis la version 1.1, le circuit est reproduit <b>composant par composant</b> et résolu à chaque échantillon (méthode de Newton sur les tensions des nœuds, sur-échantillonnage x4) : étage d'entrée à 2N3904, diviseur Sustain, deux étages d'écrêtage à 2N3904 (contre-réaction 470 k, condensateur Miller 330 pF, diodes 1N914 en série avec un condensateur de 1 µF entre collecteur et base, liaisons 150 nF / 100 nF sur 10 k : le grave est réduit avant l'écrêtage, la fuzz reste définie au lieu de baver), tone stack passif Filter, étage de sortie et Loudness. Rien n'est ajouté par-dessus : le gain, le grain carré, la dissymétrie, la façon dont les notes s'éteignent et crachotent viennent des transistors et des condensateurs eux-mêmes. Les valeurs de liaison et de tonalité donnent le grave de la voix « jumbo » de la Pickle.",
+        "Strong Pickle ajoute un inverseur <b>OCTAVE</b> que la pédale d'origine n'a pas, reproduit d'après le circuit d'octave de la <b>Fulltone Ultimate Octave</b> (descendante de la Foxx Tone Machine) : un déphaseur attaque deux diodes Schottky qui redressent le signal en double alternance, avant la fuzz."],
  inst_t="2. Installation",
  inst=[("Windows", "Téléchargez l'artefact <b>StrongPickle-VST3-Windows</b> dans l'onglet Actions du dépôt GitHub studiowiga/strong-pickle-, décompressez-le et copiez le dossier <b>Strong Pickle.vst3</b> dans <b>C:\\Program Files\\Common Files\\VST3</b>."),
        ("macOS", "Téléchargez <b>StrongPickle-VST3-macOS</b>, décompressez-le et copiez <b>Strong Pickle.vst3</b> dans <b>~/Bibliothèque/Audio/Plug-Ins/VST3</b>. Si macOS le bloque, tapez <b>xattr -cr ~/Library/Audio/Plug-Ins/VST3/Strong\\ Pickle.vst3</b> dans le Terminal. Le binaire est universel (Apple Silicon et Intel)."),
@@ -268,15 +282,18 @@ T = {
    ["9", "LED", "Jaune = effet actif, éteinte = bypass."],
    ["10", "Footswitch", "Effet actif / bypass."],
    ["11", "OUT", "Jack de sortie."],
-   ["12", "IN", "Jack d'entrée."]],
+   ["12", "IN", "Jack d'entrée."],
+   ["13", "Inverseur OCTAVE", "En bas = sans octave, en haut = octave au-dessus (façon Ultimate Octave)."]],
  ctl_t="4. Les commandes en détail",
  ctl=[("SUSTAIN", "Règle le gain du circuit, de <b>18 dB</b> au minimum à <b>62 dB</b> au maximum (les chiffres de la fiche Way Huge). C'est un diviseur entre l'étage d'entrée et le premier étage d'écrêtage. Le gain monte vite en début de course : vers 8 – 10 h, la fuzz est ronde et encore dynamique ; vers midi, les deux étages d'écrêtage sont pleinement attaqués (fuzz carrée) ; au-delà, c'est un mur de sustain dense. Le niveau suit votre jeu et les notes s'éteignent naturellement, sans pompage."),
       ("FILTER", "Le tone stack passif de la famille Big Muff, avec ses vraies valeurs : une branche passe-bas (39 k / 10 nF), une branche passe-haut (4 nF / 22 k) et le potentiomètre Filter de 100 k entre les deux. Tout à gauche, le grave gonfle et les aigus tombent ; tout à droite, le grave s'amincit et le grain ressort ; vers midi, les deux branches se rejoignent et laissent le creux de médiums typique."),
       ("LOUDNESS", "Courbe audio : 0 = coupé, midi environ 4 à 5 dB au-dessus du signal en bypass avec Sustain et Filter à midi, et jusqu'à +12 dB de plus en haut de course : l'énorme réserve de volume de la pédale. Un limiteur de sécurité garde la sortie sous 0 dBFS."),
       ("Inverseur CRUNCH", "Change la compression des étages d'écrêtage. <b>En bas</b> (classique) : les diodes sont directement dans la boucle de contre-réaction et limitent franchement : fuzz dense, beaucoup de sustain. <b>En haut</b> : une résistance de 8,2 k est mise en série avec les diodes, les étages montent beaucoup plus haut avant qu'elles n'agissent : une fuzz plus ouverte, plus granuleuse et plus dynamique, avec des crêtes plus franches et environ 2 à 3 dB de niveau en plus."),
       ("Inverseur SCOOP", "<b>En bas</b> : la voix classique, un creux d'environ 5 dB vers 800 Hz avec le Filter à midi. <b>En haut</b> : le tone stack prend des valeurs plus écartées (22 nF et 2,2 nF), pour un creux de médiums profond d'environ 12 dB, idéal pour des power chords énormes. Les documents d'origine se contredisent sur le sens de l'inverseur Scoop ; le plugin suit le manuel Way Huge (le Scoop creuse les médiums)."),
-      ("Les deux inverseurs en bas", "C'est la Swollen Pickle classique à trois potards (preset 1, Classic Pickle).")],
+      ("Les deux inverseurs en bas", "C'est la Swollen Pickle classique à trois potards (preset 1, Classic Pickle)."),
+      ("Inverseur OCTAVE", "<b>En haut</b> : l'octave au-dessus de la Fulltone Ultimate Octave. Entre l'étage d'entrée et le Sustain, un déphaseur (sorties collecteur et émetteur, légèrement déséquilibrées comme sur un vrai circuit) attaque deux diodes Schottky sur une charge commune : les deux alternances sont repliées vers le haut, la fréquence double (une octave au-dessus) avec un peu de la note d'origine, puis la fuzz l'écrête. Le redresseur est calculé en sur-échantillonnage x4. Le résultat est le meilleur sur des notes seules, micro manche, au-delà de la 12e case ; les notes graves et les accords donnent une fuzz rugueuse aux accents de modulateur en anneau, et le seuil des diodes fait crachoter la fin des notes, comme sur la pédale. Le niveau est calé sur celui de la fuzz sans octave. <b>En bas</b> : la Swollen Pickle sans octave.")],
  sw_cap="Inverseurs : les deux en bas (classique), Crunch en haut, Scoop en haut.",
+ oc_cap="Inverseur Octave : en bas (sans octave), en haut (octave au-dessus).",
  fs_t="5. Footswitch, LED et noise gate",
  fs=["<b>Footswitch</b> : il bascule dès l'appui et le bouton s'assombrit tant qu'on appuie. En bypass, le signal sec passe, aligné dans le temps sur la latence du sur-échantillonnage annoncée au DAW.",
      "<b>LED et PICKLE</b> : quand l'effet est actif, la LED s'allume en jaune (la façade autour reçoit la lumière) et le mot <b>PICKLE</b> s'allume en vert ; les deux s'allument et s'éteignent ensemble, en fondu.",
@@ -287,17 +304,18 @@ T = {
  midi_hdr=["Commande", "CC par défaut", "Type"],
  midi=[["Loudness", "CC 20", "Continu (0-127 = toute la course)"], ["Sustain", "CC 21", "Continu"], ["Filter", "CC 22", "Continu"],
        ["Crunch", "CC 23", "Bascule : 64 ou plus = en haut"], ["Scoop", "CC 24", "Bascule : 64 ou plus = en haut"],
-       ["Footswitch", "CC 25", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"]],
- learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-25)</b>. Les assignations sont sauvegardées avec le projet.",
+       ["Footswitch", "CC 25", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"],
+       ["Octave", "CC 26", "Bascule : 64 ou plus = octave au-dessus"]],
+ learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Reset MIDI to defaults (CC 20-26)</b>. Les assignations sont sauvegardées avec le projet.",
         "<b>Pédales d'expression</b> : les mouvements ne sont jamais saccadés. Strong Pickle rejoint chaque nouvelle valeur par une rampe sur le temps mesuré entre deux messages ; la course réelle de votre pédale est apprise automatiquement (une pédale qui n'envoie que 2 à 116 atteint quand même exactement 0 et 100 %). Pour un potard sur un CC de 0 à 31, le CC n+32 est lu comme sa partie fine (14 bits).",
-        "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 12</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
+        "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 13</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
  win_t="7. Fenêtre",
  win=["Strong Pickle utilise le format pédale simple d'Echoflex et de Doorn : la fenêtre s'ouvre à sa taille par défaut et ne peut jamais être réduite en dessous. Clic droit &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b> ou <b>100 %</b> pour cette fenêtre, « (default) » indiquant la taille par défaut ; <b>Default size (new windows)</b> choisit la taille à laquelle s'ouvrent les nouvelles fenêtres de Strong Pickle (réglage commun à toutes les instances) et redimensionne aussitôt la fenêtre courante. Vous pouvez aussi tirer le coin en bas à droite jusqu'à 150 % (les proportions sont conservées).",
       "L'<b>écran</b> affiche le réglage du potard ou de l'inverseur que vous venez de bouger (potards en %, par ex. <i>sustain 64 %</i>, <i>crunch up (open)</i>) ; il apparaît quand un réglage bouge et s'efface au bout de 2,5 s. Il affiche aussi les messages du MIDI Learn. La <b>barre de presets</b> en dessous affiche en permanence le preset (ou <i>Edited</i>) et l'état du bypass."],
  bar_cap="Écran et barre de presets.",
  pre_t="8. Presets",
  pre=["Utilisez les flèches de la barre de presets, cliquez sur son nom, faites un clic droit n'importe où, ou passez par le menu de presets de votre DAW. Clic droit &gt; <b>Save user preset</b> enregistre jusqu'à 9 presets personnels."],
- fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop", "Description"],
+ fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop · Octave", "Description"],
  tips_t="9. Conseils d'utilisation",
  tips=["Dans Reaper, placez Strong Pickle <b>avant</b> votre simulateur d'ampli (par exemple avant Two Notes Genome), avec un ampli clair ou légèrement crunch, comme avec la vraie pédale.",
        "Pour une 7 cordes en Sol ou des accordages plus bas, gardez le Sustain sous midi et le Filter un peu baissé : les cordes graves restent définies au lieu de crachoter. Au-delà de midi, les palm mutes deviennent un mur.",
@@ -308,8 +326,8 @@ T = {
        ["Latence", "32 échantillons (filtre de sur-échantillonnage), annoncée au DAW"], ["Gain", "18 à 62 dB (Sustain)"],
        ["Filter", "tone stack passif 39 k / 10 nF et 4 nF / 22 k, pot 100 k ; Scoop : creux plus profond (environ −12 dB)"],
        ["Loudness", "coupé à +12 dB ; midi ≈ +4,5 dB au-dessus du bypass"],
-       ["Traitement", "modèle du circuit composant par composant (2N3904, 1N914), sur-échantillonnage x4, paramètres lissés"], ["Processeur", "environ 12 à 25 % d'un cœur à 48 kHz (stéréo), selon l'ordinateur"],
-       ["MIDI", "tous les canaux ; MIDI Learn sur les 6 commandes (CC 20-25 par défaut), CC 14 bits, Program Change 1-12"],
+       ["Traitement", "modèle du circuit composant par composant (2N3904, 1N914 ; Octave : déphaseur et redresseur Schottky), sur-échantillonnage x4, paramètres lissés"], ["Processeur", "environ 12 à 25 % d'un cœur à 48 kHz (stéréo), selon l'ordinateur"],
+       ["MIDI", "tous les canaux ; MIDI Learn sur les 7 commandes (CC 20-26 par défaut), CC 14 bits, Program Change 1-13"],
        ["Fenêtre", "60 % (default) / 75 % / 100 %, jusqu'à 150 %, jamais plus petite que la taille par défaut ; anti-gel v2 sous Windows"]]),
 }
 
@@ -335,6 +353,7 @@ def section(lang):
     f.append(P(t["ctl_t"], "h1"))
     for h, x in t["ctl"]: f.append(P(h, "h2")); f.append(P(x))
     f.append(KeepTogether([Spacer(1, 3 * mm), img(sw_img, W * 0.64), P(t["sw_cap"], "small")]))
+    f.append(KeepTogether([Spacer(1, 2 * mm), img(oc_img, W * 0.30), P(t["oc_cap"], "small")]))
     f.append(P(t["fs_t"], "h1"))
     f += bullets(t["fs"])
     f.append(P(t["midi_t"], "h1")); f += [P(x) for x in t["midi_intro"]]
@@ -346,9 +365,9 @@ def section(lang):
     f.append(wt)
     f.append(P(t["pre_t"], "h1")); f += [P(x) for x in t["pre"]]
     rows = [t["fac_hdr"]]
-    for i, (n, l, s, fi, cr, sc) in enumerate(FACTORY):
-        rows.append([str(i + 1), "<b>" + n + "</b>", f"{round(l * 10)} / {round(s * 10)} / {round(fi * 10)}", f"{SW[lang][cr]} · {SW[lang][sc]}", FACT_DESC[lang][i]])
-    f.append(table(rows, [8 * mm, 26 * mm, 22 * mm, 20 * mm, W - 76 * mm], small=True))
+    for i, (n, l, s, fi, cr, sc, oc) in enumerate(FACTORY):
+        rows.append([str(i + 1), "<b>" + n + "</b>", f"{round(l * 10)} / {round(s * 10)} / {round(fi * 10)}", f"{SW[lang][cr]} · {SW[lang][sc]} · {OC[lang][oc]}", FACT_DESC[lang][i]])
+    f.append(table(rows, [8 * mm, 26 * mm, 22 * mm, 24 * mm, W - 80 * mm], small=True))
     f.append(P(t["tips_t"], "h1")); f += bullets(t["tips"], "tip")
     f.append(KeepTogether([P(t["tech_t"], "h1"), table(t["tech"], [26 * mm, W - 26 * mm], header=False, small=True)])); f.append(Spacer(1, 4 * mm))
     f.append(PageBreak())

@@ -89,6 +89,23 @@ int main()
             printf ("  scoop %d filter %4.1f : 100 Hz %+5.1f  400 Hz %+5.1f  800 Hz %+5.1f  2 kHz %+5.1f  5 kHz %+5.1f\n", sc, f,
                     sineGain (q, 100, 0.00003f), sineGain (q, 400, 0.00003f), sineGain (q, 800, 0.00003f), sineGain (q, 2000, 0.00003f), sineGain (q, 5000, 0.00003f));
         }
+    // 3b. OCTAVE : note seule 196 Hz -> l'octave (392 Hz) domine, niveau proche de la fuzz sans octave
+    {
+        std::vector<float> in ((size_t) (SR * 0.6));
+        for (size_t i = 0; i < in.size(); ++i) in[i] = 0.1f * (float) std::sin (2 * pi * 196.0 * i / SR);
+        auto comp = [&] (const std::vector<float>& o, double f)
+        {
+            double cs = 0, sn = 0; size_t a = o.size() / 2;
+            for (size_t i = a; i < o.size(); ++i) { const double ph = 2 * pi * f * (double) i / SR; cs += o[i] * std::cos (ph); sn += o[i] * std::sin (ph); }
+            return 20 * std::log10 (2.0 * std::sqrt (cs * cs + sn * sn) / (double) (o.size() - a) + 1e-12);
+        };
+        for (int oc = 0; oc < 2; ++oc)
+        {
+            Params q; q.sustain = 7.5f; q.filter = 6.5f; q.octave = oc;
+            auto o = run (q, in);
+            printf ("  octave %d : rms %+5.1f dB  196 Hz %+5.1f  392 Hz %+5.1f\n", oc, rmsDb (o, o.size() / 2, o.size()), comp (o, 196), comp (o, 392));
+        }
+    }
     // 4. bypass : sortie == entree retardee
     {
         Params q; q.active = false;

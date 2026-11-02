@@ -16,6 +16,7 @@ struct PicklePreset
     const char* name;
     float loudness, sustain, filter;   // 0..10 comme sur la pedale
     int   crunch, scoop;               // 0 = bas (classique), 1 = haut
+    int   octave = 0;                  // 1 = octave au-dessus (v1.3)
 };
 
 class PickleAudioProcessor : public juce::AudioProcessor,
@@ -62,7 +63,7 @@ public:
     void setParamValue (const juce::String& id, float plain);
 
     // anti-gel : pointeurs des parametres mis en cache au demarrage (aucune recherche par chaine dans processBlock)
-    enum RawIndex { rLoudness, rSustain, rFilter, rCrunch, rScoop, rActive, rMidiFsMode, rGate, numRaw };
+    enum RawIndex { rLoudness, rSustain, rFilter, rCrunch, rScoop, rActive, rMidiFsMode, rGate, rOctave, numRaw };
     float rawAt (int i) const { return rawPtr[i]->load (std::memory_order_relaxed); }
     float raw (const char* id) const
     {
@@ -70,7 +71,7 @@ public:
             if (std::strcmp (id, rawIds[i]) == 0) return rawAt (i);
         return apvts.getRawParameterValue (id)->load();
     }
-    static constexpr const char* rawIds[numRaw] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "midiFsMode", "gate" };
+    static constexpr const char* rawIds[numRaw] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "midiFsMode", "gate", "octave" };
     std::atomic<float>* rawPtr[numRaw] {};
 
     static juce::StringArray gateNames() { return { "Off", "Light", "Medium", "Strong" }; }
@@ -80,14 +81,14 @@ public:
     std::atomic<int> presetCounter { 0 };
     std::atomic<int> lastMidiCC { -1 }, lastMidiValue { 0 }, lastMidiProgram { -1 }, midiCounter { 0 };
 
-    enum MidiMap { ccLoudness = 20, ccSustain = 21, ccFilter = 22, ccCrunch = 23, ccScoop = 24, ccBypassFs = 25 };
+    enum MidiMap { ccLoudness = 20, ccSustain = 21, ccFilter = 22, ccCrunch = 23, ccScoop = 24, ccBypassFs = 25, ccOctave = 26 };
     static constexpr int numKnobs = 3;
     static const char* knobId (int i);
 
     // MIDI Learn : toutes les commandes de la facade (meme ordre que la file anti-gel queuedId)
     enum LearnType { learnContinuous, learnToggle, learnFootswitch };
     struct LearnDef { const char* id; const char* name; int defaultCC; int type; };
-    static constexpr int numLearn = 6;
+    static constexpr int numLearn = 7;              // 0-2 potards, 3 crunch, 4 scoop, 5 footswitch, 6 octave
     static const LearnDef& learnDef (int i);
     std::atomic<int> ccMap[numLearn];
     std::atomic<int> learnTarget { -1 };

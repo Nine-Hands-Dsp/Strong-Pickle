@@ -8,7 +8,7 @@ using namespace juce;
 //==============================================================================
 static const PicklePreset factoryPresets[] =
 {
-    //  nom                      loud  sust  filt  crunch scoop
+    //  nom                      loud  sust  filt  crunch scoop octave
     { "Classic Pickle",          5.0f, 5.0f, 5.0f, 0, 0 },   // les deux inverseurs en bas : la Swollen Pickle a trois potards
     { "Siamese Dream",           5.0f, 7.0f, 5.5f, 0, 0 },   // Big Muff op-amp de Corgan : sustain vers 14 h, tone a midi, mediums a peine creuses, compresse
     { "Smooth Low Fuzz",         6.0f, 2.5f, 5.0f, 0, 0 },   // sustain vers 9 h : fuzz lisse
@@ -21,6 +21,7 @@ static const PicklePreset factoryPresets[] =
     { "Bass Pickle",             5.0f, 4.0f, 3.5f, 0, 0 },
     { "Doom Sludge",             6.0f, 10.f, 3.0f, 0, 1 },
     { "7 Words",                 5.0f, 6.0f, 6.0f, 1, 0 },   // Deftones, intro de 7 Words (Adrenaline) : riff hache, epais et net, mediums presents
+    { "Octave Lead",             5.0f, 7.5f, 6.5f, 0, 0, 1 },// OCTAVE : octave au-dessus facon Ultimate Octave, micro manche apres la 12e case
 };
 
 int PickleAudioProcessor::getNumFactoryPresets() { return (int) std::size (factoryPresets); }
@@ -46,6 +47,7 @@ const PickleAudioProcessor::LearnDef& PickleAudioProcessor::learnDef (int i)
         { "crunch",   "Crunch",     ccCrunch,   learnToggle },      // >= 64 : haut
         { "scoop",    "Scoop",      ccScoop,    learnToggle },      // >= 64 : haut
         { "active",   "Footswitch", ccBypassFs, learnFootswitch },
+        { "octave",   "Octave",     ccOctave,   learnToggle },      // >= 64 : octave
     };
     return defs[jlimit (0, numLearn - 1, i)];
 }
@@ -91,6 +93,7 @@ AudioProcessorValueTreeState::ParameterLayout PickleAudioProcessor::createLayout
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "midiFsMode", 1 }, "MIDI Footswitch Mode",
                                                          StringArray { "Latching (127 / 0)", "Momentary (toggle)" }, 0));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "gate", 1 }, "Noise Gate", gateNames(), 0));
+    p.push_back (std::make_unique<AudioParameterBool> (ParameterID { "octave", 1 }, "Octave", d.octave != 0));
     return { p.begin(), p.end() };
 }
 
@@ -215,7 +218,7 @@ void PickleAudioProcessor::handleMidi (MidiBuffer& midi)
                 if (ramps[lsbOf].msb >= 0)
                     knobFromCC (lsbOf, (float) (ramps[lsbOf].msb * 128 + v) / 16383.0f);   // CC 14 bits
             }
-            else if (ctl == 3 || ctl == 4)
+            else if (ctl == 3 || ctl == 4 || ctl == 6)
             {
                 setParamFromAudio (ctl, v >= 64 ? 1.0f : 0.0f);
                 currentPreset = -1;
@@ -277,6 +280,7 @@ void PickleAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer&
     }
     p.crunch = rawAt (rCrunch) > 0.5f;
     p.scoop  = rawAt (rScoop) > 0.5f;
+    p.octave = rawAt (rOctave) > 0.5f;
     p.active = rawAt (rActive) > 0.5f;
     p.gate   = jlimit (0, 3, roundToInt (rawAt (rGate)));
 
@@ -300,6 +304,7 @@ void PickleAudioProcessor::applyFactoryPreset (int index)
     const auto& p = getFactoryPreset (index);
     setParamValue ("loudness", p.loudness); setParamValue ("sustain", p.sustain); setParamValue ("filter", p.filter);
     setParamValue ("crunch", (float) p.crunch); setParamValue ("scoop", (float) p.scoop);
+    setParamValue ("octave", (float) p.octave);
     currentPreset = jlimit (0, getNumFactoryPresets() - 1, index);
     ++presetCounter;
 }
@@ -310,7 +315,7 @@ File PickleAudioProcessor::getUserPresetFile()
              .getChildFile ("Studio Wiga").getChildFile ("Strong Pickle").getChildFile ("UserPresets.xml");
 }
 
-static const char* presetIds[] = { "loudness", "sustain", "filter", "crunch", "scoop" };
+static const char* presetIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "octave" };
 
 bool PickleAudioProcessor::saveUserPreset (int slot)
 {
@@ -341,6 +346,7 @@ bool PickleAudioProcessor::loadUserPreset (int slot)
         {
             for (auto* id : presetIds)
                 if (e->hasAttribute (id)) setParamValue (id, (float) e->getDoubleAttribute (id));
+                else if (std::strcmp (id, "octave") == 0) setParamValue (id, 0.0f);   // presets d'avant la v1.3 : sans octave
             currentPreset = 100 + slot; ++presetCounter;
             return true;
         }

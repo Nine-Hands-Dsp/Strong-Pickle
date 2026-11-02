@@ -127,7 +127,7 @@ private:
 
     PickleKnob knobs[PickleAudioProcessor::numKnobs];
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAtt[PickleAudioProcessor::numKnobs];
-    LeverSwitch crunchSwitch, scoopSwitch;
+    LeverSwitch crunchSwitch, scoopSwitch, octaveSwitch;
     FootSwitchArea footswitch;
 
     float ledLevel = 0.0f, drawnLed = -1.0f;

@@ -25,6 +25,7 @@ Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Stud
 | SCOOP (inverseur) | Creuse les médiums | Bas = voix classique (creux ≈ −5 dB vers 800 Hz) ; haut = valeurs écartées 22 nF / 2,2 nF, creux ≈ −12 dB |
 | CRUNCH (inverseur) | Change l'intensité de la compression | Bas = diodes directes (fuzz dense, compressée) ; haut = 8,2 k en série avec les diodes : fuzz plus ouverte, granuleuse et dynamique, +2 à 3 dB |
 | Les deux inverseurs en bas | La Swollen Pickle « trois potards » classique | Preset 1 *Classic Pickle* |
+| OCTAVE (inverseur, ajout) | Octave au-dessus, façon Fulltone Ultimate Octave | Haut = déphaseur + 2 diodes Schottky (redressement double alternance) entre Q1 et Sustain, puis la fuzz ; preset 13 *Octave Lead* |
 | Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons 150 / 100 nF : grave plein mais serré |
 | Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour ; le mot **PICKLE** s'allume en vert quand l'effet est actif (même fondu) |
 | Noise gate (ajout) | — | Clic droit > *Noise gate* : Off (défaut, comme la pédale) / Light / Medium / Strong |
@@ -57,7 +58,8 @@ MIDI Learn sur toutes les commandes (clic droit sur une commande ou menu MIDI), 
 | CC 23 | Crunch (≥ 64 = haut) |
 | CC 24 | Scoop (≥ 64 = haut) |
 | CC 25 | Footswitch (on / bypass) |
-| Program Change 1 à 12 | Presets d'usine |
+| CC 26 | Octave (≥ 64 = octave au-dessus) |
+| Program Change 1 à 13 | Presets d'usine |
 
 Footswitch MIDI à accrochage (127 = on / 0 = off, par défaut) ou momentané (bascule à chaque appui) : clic droit > Settings.
 Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'intervalle mesuré entre deux CC, puis lissage
@@ -85,3 +87,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.2.2 : preset 12 « 7 Words » (son de l'intro de *7 Words*, Deftones)
 - v1.2.3 : « PICKLE » allumé dessiné à partir d'une copie allumée du fond, mise à l'échelle exactement comme le fond : plus aucun décalage entre allumé et éteint, quelles que soient la taille de la fenêtre et l'échelle d'affichage de Windows
 - v1.2.4 : jack OUT (gauche) ramené exactement à la taille du jack IN (droite), même hauteur, toujours contre le bord du boîtier
+- v1.3.0 : inverseur OCTAVE (octave au-dessus d'après la Fulltone Ultimate Octave : déphaseur + redresseur Schottky avant la fuzz, à 4x), CC 26, preset 13 « Octave Lead »

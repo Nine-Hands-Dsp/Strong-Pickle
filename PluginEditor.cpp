@@ -10,7 +10,7 @@ namespace
     // Positions dans le repere de reference 760 x 958 (fond 1520 x 1916), generees par tools/make_background.py
     const Point<float>* const knobPos = layout::knobPos;
     const float* const knobRs = layout::knobR;
-    const Point<float> crunchPos = layout::crunchPos, scoopPos = layout::scoopPos;
+    const Point<float> crunchPos = layout::crunchPos, scoopPos = layout::scoopPos, octavePos = layout::octavePos;
     const float togHalf = layout::togHalf;
     const Point<float> ledPos = layout::ledPos;
     const float ledR = layout::ledR;
@@ -29,8 +29,8 @@ namespace
     const Colour inkStatus (0xffd6e8b6);     // texte de l'ecran du visuel
     const Colour inkPreset (0xffdae0be);     // texte de la barre de presets du visuel
 
-    const char* const valueIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "gate" };
-    constexpr int numValueIds = 7;
+    const char* const valueIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "gate", "octave" };
+    constexpr int numValueIds = 8;
 }
 
 //==============================================================================
@@ -171,6 +171,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     : AudioProcessorEditor (&p), proc (p),
       crunchSwitch (*p.apvts.getParameter ("crunch")),
       scoopSwitch  (*p.apvts.getParameter ("scoop")),
+      octaveSwitch (*p.apvts.getParameter ("octave")),
       footswitch   (*p.apvts.getParameter ("active"))
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
@@ -214,7 +215,8 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
 
     crunchSwitch.onRightClick = [this] { showContextMenu (3); };
     scoopSwitch.onRightClick  = [this] { showContextMenu (4); };
-    for (auto* l : { &crunchSwitch, &scoopSwitch })
+    octaveSwitch.onRightClick = [this] { showContextMenu (6); };
+    for (auto* l : { &crunchSwitch, &scoopSwitch, &octaveSwitch })
     {
         l->strip = strip;
         l->onUserChange = [this] { proc.currentPreset = -1; };
@@ -316,6 +318,7 @@ void PickleAudioProcessorEditor::resized()
     };
     lever (crunchSwitch, crunchPos);
     lever (scoopSwitch, scoopPos);
+    lever (octaveSwitch, octavePos);
     footswitch.setBounds (scaled ({ footPos.x - footR, footPos.y - footR, footR * 2.0f, footR * 2.0f }));
     resizeSettle = 4;
 }
@@ -362,6 +365,7 @@ String PickleAudioProcessorEditor::buildStatusLine() const
     if (i < 3)            return id + "  " + String (roundToInt (v * 10.0f)) + " %";
     if (id == "crunch")   return v > 0.5f ? "crunch up (open)" : "crunch down (classic)";
     if (id == "scoop")    return v > 0.5f ? "scoop up (deep cut)" : "scoop down (classic)";
+    if (id == "octave")   return v > 0.5f ? "octave up on" : "octave off";
     if (id == "gate")     return "noise gate " + PickleAudioProcessor::gateNames()[jlimit (0, 3, roundToInt (v))].toLowerCase();
     return v > 0.5f ? "effect on" : "bypass";
 }
@@ -402,6 +406,7 @@ void PickleAudioProcessorEditor::timerCallback()
 
     crunchSwitch.tick (now);
     scoopSwitch.tick (now);
+    octaveSwitch.tick (now);
 
     int changed = -1, numChanged = 0;
     for (int i = 0; i < numValueIds; ++i)
@@ -711,7 +716,7 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
                       true, lt == i);
     midi.addSeparator();
     if (lt >= 0) midi.addItem (1200, "Cancel MIDI learn");
-    midi.addItem (1201, "Reset MIDI to defaults (CC 20-25)");
+    midi.addItem (1201, "Reset MIDI to defaults (CC 20-26)");
     midi.addSeparator();
     midi.addItem (910, "CC n+32 = fine (14-bit) for knobs on CC 0-31", false);
     midi.addItem (911, "Program Change 1-" + String (PickleAudioProcessor::getNumFactoryPresets()) + "  Factory presets", false);

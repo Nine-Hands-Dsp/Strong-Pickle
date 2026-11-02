@@ -19,6 +19,12 @@
 //          SCOOP : bas = valeurs classiques (creux d'environ 6 dB) ; haut = creux plus profond et plus large
 //     -> Q4 etage de sortie -> [decimation] -> LOUDNESS -> OUT
 //
+// v1.3 : OCTAVE (inverseur ajoute, d'apres la Fulltone Ultimate Octave / Foxx Tone Machine) :
+//     entre Q1 et SUSTAIN, un dephaseur (collecteur / emetteur, gains 1 et 0,78 : desequilibre comme
+//     sur un vrai circuit, une part du fondamental reste) attaque deux diodes Schottky sur une charge commune : redressement double alternance
+//     -> la frequence double (octave au-dessus), puis la fuzz l'ecrete. Calcule a 4x (le redressement cree
+//     des harmoniques aigues). Seuil des diodes : fins de notes crachotantes, typiques de ces pedales.
+//
 // Le grain, la compression, la dissymetrie et les crachotements de fin de note viennent du circuit
 // (polarisation des transistors, charge des condensateurs de 1 uF des diodes), sans courbe ajoutee.
 //==============================================================================
@@ -202,6 +208,7 @@ namespace pickle
     {
         float loudness = 5.0f, sustain = 5.0f, filter = 5.0f;   // 0..10 comme sur la pedale
         bool  crunch = false, scoop = false;                    // inverseurs : false = bas (Swollen Pickle classique)
+        bool  octave = false;                                   // ajout Strong Pickle : octave au-dessus (Fulltone Ultimate Octave)
         bool  active = true;
         int   gate = 0;                                         // ajout Strong Pickle : 0 = off (defaut), 1 leger, 2 moyen, 3 fort
     };
@@ -225,6 +232,7 @@ namespace pickle
             q4.prepare (outputValues(), sr);           // etage de sortie : idem, apres la decimation
             tone.prepare (srO);
             dc1.setLP (sr, 4.0); dc3.setLP (srO, 4.0); dcOut.setLP (sr, 6.0);
+            dcOct.setLP (srO, 12.0); octLp.lowpass (srO, 9000.0, 0.7);
             aa.lowpass (sr, 14000.0, 0.6);
             // le circuit part de son point de repos : les composantes continues sont retirees des le debut
             dc1.z = (float) q1.collector(); dc3.z = (float) q3.collector();
@@ -243,14 +251,31 @@ namespace pickle
             else       { tone.rLp = 39e3; tone.cLp = 10e-9; tone.cHp = 4e-9;   tone.rHp = 22e3; }
             tone.setPosition (pos);
         }
+        void setOctave (bool on) { octave = on; dcOct.z = 0.0f; octLp.z1 = octLp.z2 = 0.0; }
+
+        // redresseur double alternance : dephaseur + 2 diodes Schottky (genou doux, seuil vf)
+        static inline float octaveUp (float v) noexcept
+        {
+            constexpr float g1 = 1.0f, g2 = 0.78f, vf = 0.10f, k = 0.05f;
+            auto half = [] (float u) { return 0.5f * (u + std::sqrt (u * u + k * k)) - 0.5f * k; };
+            return half (g1 * v - vf) + half (-g2 * v - vf);
+        }
 
         // un echantillon : x en volts (guitare ~ 0,1 a 0,5 V crete) ; atten : SUSTAIN (lineaire)
         inline float process (float x, float atten) noexcept
         {
             const double v1 = q1.process (x);
-            const float a1 = dc1.hp ((float) v1) * atten;            // SUSTAIN (diviseur apres liaison)
             float up[Oversampler4::factor];
-            os.up (a1, up);
+            if (! octave)
+            {
+                os.up (dc1.hp ((float) v1) * atten, up);              // SUSTAIN (diviseur apres liaison)
+            }
+            else
+            {
+                os.up (dc1.hp ((float) v1), up);
+                for (int i = 0; i < Oversampler4::factor; ++i)       // OCTAVE : redressement, liaison, SUSTAIN
+                    up[i] = (float) octLp.process (dcOct.hp (octaveUp (up[i]))) * (octGain * atten);
+            }
             for (int i = 0; i < Oversampler4::factor; ++i)
             {
                 const double v2 = q2.process (up[i]);
@@ -264,6 +289,10 @@ namespace pickle
 
     private:
         double sr = 48000.0, srO = 192000.0, q4c = 4.5;
+        bool octave = false;
+        static constexpr float octGain = 2.4f;     // le redressement perd du niveau : remis au niveau de la fuzz sans octave
+        OnePole dcOct;
+        Biquad octLp;
         Oversampler4 os;
         TransistorStage q1, q2, q3, q4;
         ToneStack tone;
@@ -323,20 +352,20 @@ namespace pickle
             {
                 sLoud.reset (p.loudness); sSus.reset (p.sustain); sFil.reset (p.filter);
                 sActive.reset (p.active ? 1.0f : 0.0f); sVoice.reset (1.0f);
-                curCrunch = p.crunch; curScoop = p.scoop; first = false;
-                for (auto& c : ch) { c.setCrunch (curCrunch); c.setTone (filterPos (p.filter), curScoop); }
+                curCrunch = p.crunch; curScoop = p.scoop; curOct = p.octave; first = false;
+                for (auto& c : ch) { c.setCrunch (curCrunch); c.setTone (filterPos (p.filter), curScoop); c.setOctave (curOct); }
             }
 
             for (int i = 0; i < numSamples; ++i)
             {
                 // inverseurs : court fondu (le circuit change d'un coup, comme un vrai inverseur, sans clic)
-                if (p.crunch != curCrunch || p.scoop != curScoop)
+                if (p.crunch != curCrunch || p.scoop != curScoop || p.octave != curOct)
                 {
                     const float m = sVoice.next (0.0f);
                     if (m < 0.002f)
                     {
-                        curCrunch = p.crunch; curScoop = p.scoop; sVoice.reset (0.0f);
-                        for (auto& c : ch) { c.setCrunch (curCrunch); c.setTone (filterPos (sFil.s2), curScoop); }
+                        curCrunch = p.crunch; curScoop = p.scoop; curOct = p.octave; sVoice.reset (0.0f);
+                        for (auto& c : ch) { c.setCrunch (curCrunch); c.setTone (filterPos (sFil.s2), curScoop); c.setOctave (curOct); }
                     }
                 }
                 else
@@ -350,7 +379,7 @@ namespace pickle
                     for (int c = 0; c < nCh; ++c) ch[c].setTone (filterPos (fi), curScoop);
 
                 const float atten = dbToGain (sustainDb (su));
-                const float out = dbToGain (loudnessDb (ld) + outTrim + (curCrunch ? crunchTrim : 0.0f)) * sVoice.s2;
+                const float out = dbToGain (loudnessDb (ld) + outTrim + (curCrunch ? crunchTrim : 0.0f) + (curOct ? octTrim : 0.0f)) * sVoice.s2;
 
                 float gg = 1.0f;
                 if (p.gate > 0)
@@ -383,6 +412,7 @@ namespace pickle
 
         float outTrim = -3.0f;      // calibrage : SUSTAIN / FILTER / LOUDNESS a midi ~ +4,5 dB au-dessus du bypass (tests/test_dsp.cpp)
         float crunchTrim = 0.0f;    // CRUNCH haut : le circuit est naturellement plus fort
+        float octTrim = 1.5f;       // OCTAVE : meme volume percu qu'en fuzz seule (tests)
 
     private:
         static inline float safety (float x) noexcept
@@ -403,7 +433,7 @@ namespace pickle
         int dryPos = 0, dryDelay = 32;
         Channel ch[maxChannels];
         Smooth2 sLoud, sSus, sFil, sActive, sVoice;
-        bool curCrunch = false, curScoop = false;
+        bool curCrunch = false, curScoop = false, curOct = false;
         bool first = true;
         unsigned counter = 0;
     };

@@ -34,6 +34,7 @@ int main (int argc, char** argv)
     shot ("pickle_crunch",  4, true,  false, PickleAudioProcessorEditor::baseH);
     shot ("pickle_scoop",   5, true,  false, PickleAudioProcessorEditor::baseH);
     shot ("pickle_bypass",  6, false, false, PickleAudioProcessorEditor::baseH);
+    shot ("pickle_octave", 12, true,  false, PickleAudioProcessorEditor::baseH);
 
     // test pedale d'expression : course 2..116 sur CC 21 (sustain)
     {

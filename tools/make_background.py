@@ -337,6 +337,40 @@ t = out[ny0:ny0 + nh, nx0:nx0 + nw]
 t[:] = t * (1 - cm_s[..., None]) + crop_s * cm_s[..., None]
 img[JY0:JY1] = out
 
+# ------------------------------------------------------------------ 9. inverseur OCTAVE (v1.3, ajout Strong Pickle)
+# Une bague d'inverseur identique a celle de SCOOP (copiee du visuel, meme eclairage) est posee a droite du footswitch,
+# a l'aplomb de SCOOP, avec l'etiquette OCTAVE dans la police des etiquettes (Barlow Condensed Bold, meme couleur).
+import sys as _sys
+_sys.path.insert(0, HERE)
+from label_font import render as _render_label
+OCT_V = (TOGGLES[1][0], 936.0)                     # position dans le visuel (px) : x de SCOOP, entre footswitch et bord
+sx, sy = U(TOGGLES[1][0]) * PX, U(TOGGLES[1][1]) * PX
+tx, ty = U(OCT_V[0]) * PX, U(OCT_V[1]) * PX
+R0, R1, RP = 44.0, 57.0, 80
+def _patch(cx, cy):
+    x0, y0 = int(round(cx)) - RP, int(round(cy)) - RP
+    return x0, y0, img[y0:y0 + 2 * RP, x0:x0 + 2 * RP]
+yy9, xx9 = np.mgrid[-RP:RP, -RP:RP].astype(np.float32)
+rr9 = np.hypot(xx9 + 0.5, yy9 + 0.5)
+mk9 = np.clip((R1 - rr9) / (R1 - R0), 0, 1)
+mk9 = mk9 * mk9 * (3 - 2 * mk9)
+ann = (rr9 > 62) & (rr9 < 76)
+_, _, ps = _patch(sx, sy)
+x0t, y0t, pt = _patch(tx, ty)
+corr = np.median(pt[ann], axis=0) - np.median(ps[ann], axis=0)      # teinte locale de la peinture
+pt[:] = pt * (1 - mk9[..., None]) + (ps + corr) * mk9[..., None]
+# etiquette
+lab = _render_label('OCTAVE', 'BarlowCondensed-Bold.ttf', 24.5, 3.2).astype(np.float32) / 255.0
+lab = cv2.GaussianBlur(lab, (0, 0), 0.55)
+lh, lw = lab.shape
+ly0 = int(round(ty + (849.0 - sy) - lh / 2.0)); lx0 = int(round(tx - lw / 2.0))
+reg9 = img[ly0:ly0 + lh, lx0:lx0 + lw]
+inkc = np.array([160, 181, 136], np.float32)
+grain = reg9 - cv2.GaussianBlur(reg9, (0, 0), 3.0)                  # grain de la peinture garde dans les lettres
+reg9[:] = reg9 * (1 - 0.95 * lab[..., None]) + (inkc + 0.35 * grain) * (0.95 * lab[..., None])
+OCTU = (U(OCT_V[0]), U(OCT_V[1]))
+print('octave : inverseur', OCTU, 'etiquette', (lx0, ly0, lw, lh))
+
 # ------------------------------------------------------------------ sorties
 Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
@@ -346,7 +380,7 @@ kp = [(U(cx), U(cy)) for cx, cy, _ in KNOBS]
 kr = [U(R) for _, _, R in KNOBS]
 tp = [(U(cx), U(cy)) for cx, cy in TOGGLES]
 st = tuple(U(v) for v in STATUS_BOX); pr = tuple(U(v) for v in PRESET_BOX)
-lay = dict(knobs=kp, knobR=kr, toggles=tp, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
+lay = dict(knobs=kp, knobR=kr, toggles=tp, octave=OCTU, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
            footR=U(FOOT_R), glow=GLOW, pickle=PKU, status=st, preset=pr)
 json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
 open(os.path.join(ROOT, 'Layout.h'), 'w').write(f"""// genere par tools/make_background.py - ne pas modifier a la main (repere 760 x 958)
@@ -356,7 +390,7 @@ namespace layout
 {{
     const juce::Point<float> knobPos[3] = {{ {P(kp[0])}, {P(kp[1])}, {P(kp[2])} }};
     const float knobR[3] = {{ {kr[0]:.2f}f, {kr[1]:.2f}f, {kr[2]:.2f}f }};      // rayon du moletage
-    const juce::Point<float> crunchPos {P(tp[0])}, scoopPos {P(tp[1])};
+    const juce::Point<float> crunchPos {P(tp[0])}, scoopPos {P(tp[1])}, octavePos {P(OCTU)};
     const float togHalf = {TOG_HALF:.2f}f;
     const juce::Point<float> ledPos {P(LEDU)}; const float ledR = {LED_R:.2f}f;
     const juce::Point<float> footPos {P((U(FOOT[0]), U(FOOT[1])))}; const float footR = {U(FOOT_R):.2f}f;
