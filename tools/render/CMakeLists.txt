@@ -11,5 +11,5 @@ target_sources(PickleRender PRIVATE main.cpp ${W}/PluginProcessor.cpp ${W}/Plugi
 target_include_directories(PickleRender PRIVATE ${W})
 target_compile_definitions(PickleRender PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_ALSA=0 JUCE_JACK=0
   JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XCURSOR=0 JUCE_USE_XSHM=0 JucePlugin_Name="Strong Pickle" JucePlugin_Build_VST3=0
-  JucePlugin_VersionString="1.1.0" JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
+  JucePlugin_VersionString="1.2.0" JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
 target_link_libraries(PickleRender PRIVATE StrongPickleAssets juce::juce_audio_utils juce::juce_recommended_config_flags)

@@ -80,3 +80,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 ## Historique
 
 - v1.1.0 : clic droit > Plugin size > Default size (new windows) : taille par défaut des nouvelles fenêtres au choix, comme dans Octopus
+- v1.2.0 : fuzz refaite au niveau des composants (`PickleCircuit.h` : 2N3904, 1N914, condensateurs et tone stack réels, résolution à chaque échantillon) : plus de pompage ni de compression artificielle, plus de gain, grave réduit avant l'écrêtage (fuzz définie) ; CRUNCH = 8,2 k en série avec les diodes ; « PICKLE » allumé exactement aligné sur les lettres éteintes
