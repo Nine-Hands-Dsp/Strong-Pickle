@@ -14,6 +14,7 @@ namespace
     const Point<float> ledPos = layout::ledPos;
     const float ledR = layout::ledR;
     const Rectangle<float> glowRect = layout::glowRect;
+    const Rectangle<float> pickleRect = layout::pickleRect;    // « PICKLE » s'allume en vert avec l'effet
     const Point<float> footPos = layout::footPos;
     const float footR = layout::footR;
     const Rectangle<float> statusRect = layout::statusRect;
@@ -173,6 +174,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
 {
     background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
     glowYellow = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
+    pickleGlow = ImageCache::getFromMemory (BinaryData::pickle_glow_png, BinaryData::pickle_glow_pngSize);
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
     labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
 
@@ -279,6 +281,8 @@ void PickleAudioProcessorEditor::rebuildCaches (float sc)
     const float s = (float) h / (float) baseH;
     const int gpx = roundToInt (glowRect.getWidth() * s * sc);
     glowYellowS = (gpx >= glowYellow.getWidth()) ? glowYellow : glowYellow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
+    const int pkw = roundToInt (pickleRect.getWidth() * s * sc), pkh = roundToInt (pickleRect.getHeight() * s * sc);
+    pickleGlowS = (pkw >= pickleGlow.getWidth()) ? pickleGlow : pickleGlow.rescaled (pkw, pkh, Graphics::highResamplingQuality);
     repaint();
 }
 
@@ -425,6 +429,7 @@ void PickleAudioProcessorEditor::timerCallback()
     {
         drawnLed = ledLevel;
         askRepaint (scaled (glowRect));
+        askRepaint (scaled (pickleRect));
     }
 
     const auto l1 = (learnLineUntil > 0.0 && now < learnLineUntil + 800.0 ? learnLine : buildStatusLine()), pl = buildPresetLine();
@@ -453,6 +458,12 @@ void PickleAudioProcessorEditor::drawLed (Graphics& g)
     {
         g.setOpacity (level);
         g.drawImage (glowYellowS, glowRect);
+    }
+    // le mot « PICKLE » s'allume en vert (meme fondu que la LED)
+    if (pickleGlowS.isValid())
+    {
+        g.setOpacity (level);
+        g.drawImage (pickleGlowS, pickleRect);
     }
     g.setOpacity (1.0f);
 

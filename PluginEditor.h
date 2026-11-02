@@ -112,7 +112,7 @@ private:
     PickleKnobLookAndFeel lnf;
     RightClickForwarder rightClickFwd;
 
-    juce::Image background, bgScaled, glowYellow, glowYellowS;
+    juce::Image background, bgScaled, glowYellow, glowYellowS, pickleGlow, pickleGlowS;
     int cacheW = 0, cacheH = 0;
     float cacheScale = 0.0f;
     int resizeSettle = 0;

@@ -26,7 +26,7 @@ Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Stud
 | CRUNCH (inverseur) | Change l'intensité de la compression | Bas = classique : diodes franches, fuzz lisse et compressée ; haut = diodes freinées (résistance série) : l'étage va jusqu'à ses rails, fuzz plus ouverte et granuleuse, ~ +5 dB |
 | Les deux inverseurs en bas | La Swollen Pickle « trois potards » classique | Preset 1 *Classic Pickle* |
 | Grave « jumbo » | Condensateurs de liaison plus gros qu'une Big Muff | Liaisons à 18 – 22 Hz + bosse de 2,5 dB à 95 Hz |
-| Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour |
+| Footswitch / LED | True bypass, LED bleue | Footswitch du visuel (bascule à l'appui, bouton assombri tant qu'on appuie), **LED jaune** en fondu, la façade s'éclaire autour ; le mot **PICKLE** s'allume en vert quand l'effet est actif (même fondu) |
 | Noise gate (ajout) | — | Clic droit > *Noise gate* : Off (défaut, comme la pédale) / Light / Medium / Strong |
 
 Sources : manuel Way Huge WM41 (Dunlop), fiches revendeurs (Reverb, Guitar Center, Musik Store), test Bonedo

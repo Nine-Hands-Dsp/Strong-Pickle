@@ -229,6 +229,41 @@ fs = frames[0].shape[0]
 strip = np.concatenate(frames, axis=0)
 Image.fromarray(strip, 'RGBA').save(os.path.join(ROOT, 'toggle_strip.png'))
 
+# ------------------------------------------------------------------ 7. « PICKLE » qui s'allume en vert quand l'effet est actif
+# Les lettres creme du visuel deviennent des lettres lumineuses vertes (coeur clair, bord sature),
+# avec un halo serre et une lueur douce sur la peinture autour. Calque RGBA (alpha = lumiere seule),
+# affiche par le plugin avec une opacite = niveau de la LED (meme fondu).
+PK_BOX = (340.0, 706.0, 236.0, 64.0)              # zone du mot dans le visuel (px)
+bx, by, bw, bh = PK_BOX
+gA = A.mean(-1); sA = A.max(-1) - A.min(-1)
+letters = np.zeros((H, W), np.float32)
+sel = (XX >= bx) & (XX < bx + bw) & (YY >= by) & (YY < by + bh)
+letters[sel] = np.clip((gA[sel] - 105) / 70.0, 0, 1) * (sA[sel] < 80)
+lb = cv2.resize(letters, (W2, H2), interpolation=cv2.INTER_LINEAR)
+lb = np.clip(cv2.GaussianBlur(lb, (0, 0), 0.7) * 1.15, 0, 1)
+PKU = (U(bx) - 26.0, U(by) - 26.0, U(bw) + 52.0, U(bh) + 52.0)    # rectangle du calque (unites)
+px0, py0 = int(PKU[0] * PX), int(PKU[1] * PX)
+pw, ph = int(PKU[2] * PX), int(PKU[3] * PX)
+m = lb[py0:py0 + ph, px0:px0 + pw]
+base = img[py0:py0 + ph, px0:px0 + pw]
+# coeur des lettres : vert lumineux, plus clair au centre des traits (distance au bord)
+dist = cv2.distanceTransform((m > 0.5).astype(np.uint8), cv2.DIST_L2, 3)
+core = np.clip(dist / 5.0, 0, 1)[..., None]
+green_edge = np.array([70, 235, 60], np.float32); green_core = np.array([215, 255, 190], np.float32)
+letter_rgb = green_edge + (green_core - green_edge) * core
+halo1 = cv2.GaussianBlur(m, (0, 0), 3.0)
+halo2 = cv2.GaussianBlur(m, (0, 0), 14.0)
+glowc = np.array([80, 255, 60], np.float32)
+lit = base * (1 + (0.9 * halo1 + 1.6 * halo2)[..., None] * np.array([0.25, 1.0, 0.2], np.float32)) \
+      + (0.55 * halo1)[..., None] * glowc
+lit = lit * (1 - m[..., None]) + letter_rgb * m[..., None]
+lit = np.clip(lit, 0, 255)
+add = np.abs(lit - base).max(-1)
+a = np.clip(np.maximum(m, add / 45.0), 0, 1)
+srcp = np.where(a[..., None] > 1e-3, base + (lit - base) / np.maximum(a[..., None], 1e-3), base)
+pk = np.dstack([np.clip(srcp, 0, 255), a[..., None] * 255]).astype(np.uint8)
+Image.fromarray(pk, 'RGBA').save(os.path.join(ROOT, 'pickle_glow.png'))
+
 # ------------------------------------------------------------------ sorties
 Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).save(os.path.join(ROOT, 'background.jpg'), quality=94, subsampling=0)
 
@@ -239,7 +274,7 @@ kr = [U(R) for _, _, R in KNOBS]
 tp = [(U(cx), U(cy)) for cx, cy in TOGGLES]
 st = tuple(U(v) for v in STATUS_BOX); pr = tuple(U(v) for v in PRESET_BOX)
 lay = dict(knobs=kp, knobR=kr, toggles=tp, togHalf=TOG_HALF, led=LEDU, ledR=LED_R, foot=(U(FOOT[0]), U(FOOT[1])),
-           footR=U(FOOT_R), glow=GLOW, status=st, preset=pr)
+           footR=U(FOOT_R), glow=GLOW, pickle=PKU, status=st, preset=pr)
 json.dump(lay, open(os.path.join(HERE, 'layout.json'), 'w'), indent=1)
 open(os.path.join(ROOT, 'Layout.h'), 'w').write(f"""// genere par tools/make_background.py - ne pas modifier a la main (repere 760 x 958)
 #pragma once
@@ -253,6 +288,7 @@ namespace layout
     const juce::Point<float> ledPos {P(LEDU)}; const float ledR = {LED_R:.2f}f;
     const juce::Point<float> footPos {P((U(FOOT[0]), U(FOOT[1])))}; const float footR = {U(FOOT_R):.2f}f;
     const juce::Rectangle<float> glowRect {Rc(GLOW)};
+    const juce::Rectangle<float> pickleRect {Rc(PKU)};    // calque « PICKLE » allume (vert)
     const juce::Rectangle<float> statusRect {Rc(st)};
     const juce::Rectangle<float> presetRect {Rc(pr)};
 }}
