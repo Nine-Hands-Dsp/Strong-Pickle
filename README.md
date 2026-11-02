@@ -3,7 +3,7 @@
 Fuzz au format pédale simple (référence de format : Echoflex / Doorn), reproduction de la
 **Way Huge Swollen Pickle Jumbo Fuzz MkIII** (WM41, série « Smalls »), fuzz de la famille Big Muff
 connue pour son grave énorme, sa réserve de volume et ses crachotements (« sputter ») à mi-course.
-Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Studio Wiga (`design/source/strong_pickle_visuel.png`), intégré tel quel ; motif du cornichon pris sur `design/source/strong_pickle_visuel_motif.jpg` (v1.4).
+Usage personnel. Windows 11 et macOS (binaire universel). Visuel fourni par Studio Wiga (`design/source/strong_pickle_visuel.png`), intégré tel quel ; motif du cornichon : `design/source/strong_pickle_motif_seul.png` (dessin seul, v1.4.1), recalé sur `design/source/strong_pickle_visuel_motif.jpg`.
 
 ## Installation via GitHub
 
@@ -89,3 +89,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.3.0 : inverseur OCTAVE (octave au-dessus d'après la Fulltone Ultimate Octave : déphaseur + redresseur Schottky avant la fuzz, à 4x), CC 26, preset 13 « Octave Lead »
 - v1.3.1 : plus aucune assignation MIDI par défaut (CC 20-26 retirés, y compris ceux enregistrés dans les anciens projets) ; MIDI Learn sur chaque commande, « Clear all MIDI assignments »
 - v1.4.0 : motif du cornichon sur la coque (design fourni, trait crème redessiné net) ; inverseur OCTAVE à 3 positions comme l'Ultimate Octave : haut = Fat (15 nF), milieu = off, bas = Bright (1 nF)
+- v1.4.1 : motif du cornichon redessiné depuis le dessin seul (complet, réduit de 12 %, descendu ~3 mm) ; inverseur OCTAVE à la hauteur de la LED (OCTAVE à droite) avec sa LED jaune à gauche (halo sur la façade) ; FUZZ plus gros ; graduations des potards nettes ; peinture et ombres refaites autour des inverseurs ; étiquettes dégagées et plus lisibles

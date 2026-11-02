@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1]
 OUT = sys.argv[2]
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -38,7 +38,7 @@ marks = [  # numero, x, y (unites 760 x 958)
     (1, kn[0][0] - 62, kn[0][1] - 58), (2, kn[1][0] + 62, kn[1][1] - 58), (3, kn[2][0] + 58, kn[2][1] - 40),
     (4, tg[0][0] - 44, tg[0][1] - 20), (5, tg[1][0] + 44, tg[1][1] - 20),
     (6, 222, 478), (7, 212, 526), (8, 236, 615), (9, LAY["led"][0] + 32, LAY["led"][1]), (10, LAY["foot"][0] + 74, LAY["foot"][1]),
-    (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 44, LAY["octave"][1] - 22)]
+    (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 20, LAY["octave"][1] - 44), (14, LAY["octLed"][0], LAY["octLed"][1] - 30)]
 ann = src.copy(); dr = ImageDraw.Draw(ann)
 fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
 for n, x, y in marks:
@@ -59,13 +59,13 @@ def strip(parts, path):
 box_sw = (180, 300, 580, 410)
 sw_img = strip([crop_u(shot(n), box_sw) for n in ("pickle_status.png", "pickle_crunch.png", "pickle_scoop.png")], os.path.join(TMP, "pickle_switches.png"))
 # effet actif / bypass : PICKLE vert + LED jaune
-box_on = (250, 560, 510, 740)
+box_on = (250, 560, 625, 740)
 on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
 # ecran + barre de presets
 bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548)).save(bar_img)
 # inverseur OCTAVE : milieu (off), haut (Fat), bas (Bright)
 ox, oy = LAY["octave"]
-box_oc = (ox - 62, oy - 52, ox + 62, oy + 84)
+box_oc = (ox - 62, oy - 50, ox + 102, oy + 50)
 oc_img = strip([crop_u(src, box_oc), crop_u(shot("pickle_octave.png"), box_oc), crop_u(shot("pickle_octave_bright.png"), box_oc)], os.path.join(TMP, "pickle_octave_sw.png"))
 
 # ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
@@ -213,7 +213,8 @@ T = {
    ["10", "Footswitch", "Effect on / bypass."],
    ["11", "OUT", "Output jack."],
    ["12", "IN", "Input jack."],
-   ["13", "OCTAVE switch", "3 positions, as on the Ultimate Octave: up = Fat, middle = off, down = Bright."]],
+   ["13", "OCTAVE switch", "3 positions, as on the Ultimate Octave: up = Fat, middle = off, down = Bright."],
+   ["14", "Octave LED", "Yellow = octave in use (Fat or Bright) with the effect on."]],
  ctl_t="4. Controls in detail",
  ctl=[("SUSTAIN", "Sets the gain of the circuit, from <b>18 dB</b> fully down to <b>62 dB</b> fully up (the figures of the Way Huge spec sheet). It is a divider between the input stage and the first clipping stage. The gain rises quickly at the start of the travel: around 8 to 10 o'clock the fuzz is round and still dynamic; around noon the two clipping stages are fully driven (square-wave fuzz); further up it becomes a dense wall of sustain. The level follows your picking and the notes decay naturally, without pumping."),
       ("FILTER", "The passive tone stack of the Big Muff family, with its real values: a low-pass branch (39 k / 10 nF), a high-pass branch (4 nF / 22 k) and the 100 k Filter pot between them. Fully down, the low end swells and the highs roll off; fully up, the low end thins out and the grain comes forward; around noon the two branches meet and leave the typical mid dip."),
@@ -226,7 +227,7 @@ T = {
  oc_cap="Octave switch: middle (off), up (Fat), down (Bright).",
  fs_t="5. Footswitch, LED and noise gate",
  fs=["<b>Footswitch</b>: it switches as soon as you press it and the cap darkens while held. In bypass, the dry signal is passed through, time-aligned with the oversampling latency reported to the DAW.",
-     "<b>LED and PICKLE</b>: when the effect is on, the LED lights up yellow (the panel around it catches the light) and the word <b>PICKLE</b> lights up green; both fade in and out together.",
+     "<b>LED and PICKLE</b>: when the effect is on, the LED lights up yellow (the panel around it catches the light) and the word <b>PICKLE</b> lights up green; both fade in and out together. The second yellow LED, left of the OCTAVE switch, lights up (with the same glow on the panel) when the octave is in use, Fat or Bright, and the effect is on.",
      "<b>Noise gate</b> (right-click &gt; Noise gate): <b>Off</b> by default, like the original pedal, or Light, Medium, Strong for noisy pickups. It opens instantly on the next note and lets notes fade smoothly. Acts on the effect only."],
  on_cap="Bypass, then effect on: PICKLE lit in green, yellow LED.",
  midi_t="6. MIDI",
@@ -283,7 +284,8 @@ T = {
    ["10", "Footswitch", "Effet actif / bypass."],
    ["11", "OUT", "Jack de sortie."],
    ["12", "IN", "Jack d'entrée."],
-   ["13", "Inverseur OCTAVE", "3 positions, comme sur l'Ultimate Octave : haut = Fat, milieu = sans octave, bas = Bright."]],
+   ["13", "Inverseur OCTAVE", "3 positions, comme sur l'Ultimate Octave : haut = Fat, milieu = sans octave, bas = Bright."],
+   ["14", "LED d'octave", "Jaune = octave en service (Fat ou Bright), effet actif."]],
  ctl_t="4. Les commandes en détail",
  ctl=[("SUSTAIN", "Règle le gain du circuit, de <b>18 dB</b> au minimum à <b>62 dB</b> au maximum (les chiffres de la fiche Way Huge). C'est un diviseur entre l'étage d'entrée et le premier étage d'écrêtage. Le gain monte vite en début de course : vers 8 – 10 h, la fuzz est ronde et encore dynamique ; vers midi, les deux étages d'écrêtage sont pleinement attaqués (fuzz carrée) ; au-delà, c'est un mur de sustain dense. Le niveau suit votre jeu et les notes s'éteignent naturellement, sans pompage."),
       ("FILTER", "Le tone stack passif de la famille Big Muff, avec ses vraies valeurs : une branche passe-bas (39 k / 10 nF), une branche passe-haut (4 nF / 22 k) et le potentiomètre Filter de 100 k entre les deux. Tout à gauche, le grave gonfle et les aigus tombent ; tout à droite, le grave s'amincit et le grain ressort ; vers midi, les deux branches se rejoignent et laissent le creux de médiums typique."),
@@ -296,7 +298,7 @@ T = {
  oc_cap="Inverseur Octave : milieu (sans octave), haut (Fat), bas (Bright).",
  fs_t="5. Footswitch, LED et noise gate",
  fs=["<b>Footswitch</b> : il bascule dès l'appui et le bouton s'assombrit tant qu'on appuie. En bypass, le signal sec passe, aligné dans le temps sur la latence du sur-échantillonnage annoncée au DAW.",
-     "<b>LED et PICKLE</b> : quand l'effet est actif, la LED s'allume en jaune (la façade autour reçoit la lumière) et le mot <b>PICKLE</b> s'allume en vert ; les deux s'allument et s'éteignent ensemble, en fondu.",
+     "<b>LED et PICKLE</b> : quand l'effet est actif, la LED s'allume en jaune (la façade autour reçoit la lumière) et le mot <b>PICKLE</b> s'allume en vert ; les deux s'allument et s'éteignent ensemble, en fondu. La seconde LED jaune, à gauche de l'inverseur OCTAVE, s'allume (avec la même lumière sur la façade) quand l'octave est en service, Fat ou Bright, et que l'effet est actif.",
      "<b>Noise gate</b> (clic droit &gt; Noise gate) : <b>Off</b> par défaut, comme la pédale d'origine, ou Light, Medium, Strong pour des micros bruyants. Il s'ouvre instantanément à la note suivante et laisse les notes s'éteindre en douceur. N'agit que sur l'effet."],
  on_cap="Bypass, puis effet actif : PICKLE allumé en vert, LED jaune.",
  midi_t="6. MIDI",
