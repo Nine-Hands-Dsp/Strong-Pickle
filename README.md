@@ -50,9 +50,9 @@ et le test Bonedo disent qu'il creuse : c'est ce qui est reproduit.
 ## MIDI
 
 MIDI Learn sur toutes les commandes (clic droit sur une commande ou menu MIDI), assignations sauvegardées avec le projet.
-Depuis la v1.3.1, **aucun CC n'est assigné d'office** (Loudness, Sustain, Filter, Crunch, Scoop, Footswitch, Octave) :
-chaque commande s'assigne par le MIDI Learn ; « Clear all MIDI assignments » efface tout. Les CC 20 à 26 enregistrés
-dans les projets des versions précédentes (assignations d'usine) sont ignorés à l'ouverture.
+**Aucun CC assigné par défaut : clic droit > MIDI > Learn** (Loudness, Sustain, Filter, Crunch, Scoop, Footswitch, Octave) ;
+« Clear all MIDI assignments » efface tout. Un projet d'une ancienne version dont la table MIDI n'avait jamais été modifiée
+s'ouvre sans aucune assignation ; si au moins une assignation avait été changée, la table est gardée telle quelle.
 Pour un potard appris sur un CC de 0 à 31, le CC n+32 est lu comme poids faible 14 bits.
 Octave par MIDI : 0-42 = sans octave, 43-84 = Fat, 85-127 = Bright.
 
@@ -90,3 +90,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.3.1 : plus aucune assignation MIDI par défaut (CC 20-26 retirés, y compris ceux enregistrés dans les anciens projets) ; MIDI Learn sur chaque commande, « Clear all MIDI assignments »
 - v1.4.0 : motif du cornichon sur la coque (design fourni, trait crème redessiné net) ; inverseur OCTAVE à 3 positions comme l'Ultimate Octave : haut = Fat (15 nF), milieu = off, bas = Bright (1 nF)
 - v1.4.1 : motif du cornichon redessiné depuis le dessin seul (complet, réduit de 12 %, descendu ~3 mm) ; inverseur OCTAVE à la hauteur de la LED (OCTAVE à droite) avec sa LED jaune à gauche (halo sur la façade) ; FUZZ plus gros ; graduations des potards nettes ; peinture et ombres refaites autour des inverseurs ; étiquettes dégagées et plus lisibles
+- v1.4.2 : plus aucun CC MIDI assigné par défaut (tout passe par le MIDI Learn) ; anciens projets : la table MIDI n'est vidée que si elle n'avait jamais été modifiée

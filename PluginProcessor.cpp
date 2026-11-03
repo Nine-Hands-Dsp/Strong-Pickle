@@ -386,10 +386,18 @@ void PickleAudioProcessor::setStateInformation (const void* data, int size)
         {
             auto state = ValueTree::fromXml (*xml);
             currentPreset = (int) state.getProperty ("currentPreset", 0);
-            // projets d'avant la v1.3.1 : les CC 20-26 enregistres etaient les assignations d'usine -> effaces
+            // projets d'avant la v1.3.1 : si la table enregistree est exactement l'ancienne table d'usine (CC 20-26,
+            // cc_octave absent avant la v1.3.0), elle n'a jamais ete modifiee -> videe ; sinon gardee telle quelle
             const bool midiV2 = (int) state.getProperty ("midiMapVersion", 1) >= 2;
+            int loaded[numLearn];
+            bool factory = ! midiV2;
             for (int i = 0; i < numLearn; ++i)
-                ccMap[i].store (midiV2 ? jlimit (-1, 127, (int) state.getProperty (String ("cc_") + learnDef (i).id, -1)) : -1);
+            {
+                loaded[i] = jlimit (-1, 127, (int) state.getProperty (String ("cc_") + learnDef (i).id, midiV2 ? -1 : learnDef (i).defaultCC));
+                if (loaded[i] != learnDef (i).defaultCC) factory = false;
+            }
+            for (int i = 0; i < numLearn; ++i)
+                ccMap[i].store (factory ? -1 : loaded[i]);
             apvts.replaceState (state);
             ++presetCounter;
         }
