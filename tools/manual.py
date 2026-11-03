@@ -1,5 +1,7 @@
 # STRONG PICKLE (Studio Wiga) - notice PDF bilingue (anglais puis francais), illustree avec le rendu reel du plugin.
-# Usage : python3 tools/manual.py <dossier des captures (tools/render)> <fichier PDF de sortie>
+# Usage : python3 tools/manual.py [<dossier des captures (tools/render)>] <fichier PDF de sortie>
+#   avec captures : recompose les images et les copie dans tools/manual_assets/ ;
+#   sans captures : reprend les images composees de tools/manual_assets/ (extraites de la notice precedente).
 import os, sys, json
 import numpy as np, cv2
 from PIL import Image, ImageDraw, ImageFont
@@ -14,9 +16,9 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SHOTS = sys.argv[1]
-OUT = sys.argv[2]
-VERSION = "1.4.1"
+SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
+OUT = sys.argv[-1]
+VERSION = "1.4.2"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -28,96 +30,104 @@ ACC = colors.HexColor("#3E9A2E"); ACC_L = colors.HexColor("#8EDB6C")      # vert
 DARK = colors.HexColor("#17201A"); GREY = colors.HexColor("#5F6A62"); LIGHT = colors.HexColor("#EEF3E8")
 LAY = json.load(open(os.path.join(ROOT, "tools", "layout.json")))
 
-def shot(name): return Image.open(os.path.join(SHOTS, name)).convert("RGB")
-src = shot("pickle_status.png")
-k = src.height / 958.0
+ASSETS = os.path.join(ROOT, "tools", "manual_assets")
+NAMES = ["pickle_annotated.png", "pickle_switches.png", "pickle_onoff.png", "pickle_bar.png", "pickle_octave_sw.png", "pickle_cover_cutout.png"]
+if SHOTS:
+    def shot(name): return Image.open(os.path.join(SHOTS, name)).convert("RGB")
+    src = shot("pickle_status.png")
+    k = src.height / 958.0
 
-# ---------- capture annotee ----------
-kn, tg = LAY["knobs"], LAY["toggles"]
-marks = [  # numero, x, y (unites 760 x 958)
-    (1, kn[0][0] - 62, kn[0][1] - 58), (2, kn[1][0] + 62, kn[1][1] - 58), (3, kn[2][0] + 58, kn[2][1] - 40),
-    (4, tg[0][0] - 44, tg[0][1] - 20), (5, tg[1][0] + 44, tg[1][1] - 20),
-    (6, 222, 478), (7, 212, 526), (8, 236, 615), (9, LAY["led"][0] + 32, LAY["led"][1]), (10, LAY["foot"][0] + 74, LAY["foot"][1]),
-    (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 20, LAY["octave"][1] - 44), (14, LAY["octLed"][0], LAY["octLed"][1] - 30)]
-ann = src.copy(); dr = ImageDraw.Draw(ann)
-fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
-for n, x, y in marks:
-    cx, cy, r = x * k, y * k, 27
-    dr.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255), outline=(62, 154, 46), width=5)
-    dr.text((cx, cy + 1), str(n), font=fnt, fill=(20, 32, 22), anchor="mm")
-annotated = os.path.join(TMP, "pickle_annotated.png"); ann.save(annotated)
+    # ---------- capture annotee ----------
+    kn, tg = LAY["knobs"], LAY["toggles"]
+    marks = [  # numero, x, y (unites 760 x 958)
+        (1, kn[0][0] - 62, kn[0][1] - 58), (2, kn[1][0] + 62, kn[1][1] - 58), (3, kn[2][0] + 58, kn[2][1] - 40),
+        (4, tg[0][0] - 44, tg[0][1] - 20), (5, tg[1][0] + 44, tg[1][1] - 20),
+        (6, 222, 478), (7, 212, 526), (8, 236, 615), (9, LAY["led"][0] + 32, LAY["led"][1]), (10, LAY["foot"][0] + 74, LAY["foot"][1]),
+        (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 20, LAY["octave"][1] - 44), (14, LAY["octLed"][0], LAY["octLed"][1] - 30)]
+    ann = src.copy(); dr = ImageDraw.Draw(ann)
+    fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
+    for n, x, y in marks:
+        cx, cy, r = x * k, y * k, 27
+        dr.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255), outline=(62, 154, 46), width=5)
+        dr.text((cx, cy + 1), str(n), font=fnt, fill=(20, 32, 22), anchor="mm")
+    annotated = os.path.join(TMP, "pickle_annotated.png"); ann.save(annotated)
 
-def crop_u(im, box): return im.crop(tuple(int(v * k) for v in box))
-gap = 18
-def strip(parts, path):
-    s = Image.new("RGB", (sum(p.width for p in parts) + gap * (len(parts) - 1), max(p.height for p in parts)), (255, 255, 255))
-    x = 0
-    for p in parts: s.paste(p, (x, 0)); x += p.width + gap
-    s.save(path); return path
+    def crop_u(im, box): return im.crop(tuple(int(v * k) for v in box))
+    gap = 18
+    def strip(parts, path):
+        s = Image.new("RGB", (sum(p.width for p in parts) + gap * (len(parts) - 1), max(p.height for p in parts)), (255, 255, 255))
+        x = 0
+        for p in parts: s.paste(p, (x, 0)); x += p.width + gap
+        s.save(path); return path
 
-# inverseurs : les deux en bas (classique), CRUNCH haut, SCOOP haut
-box_sw = (180, 300, 580, 410)
-sw_img = strip([crop_u(shot(n), box_sw) for n in ("pickle_status.png", "pickle_crunch.png", "pickle_scoop.png")], os.path.join(TMP, "pickle_switches.png"))
-# effet actif / bypass : PICKLE vert + LED jaune
-box_on = (250, 560, 625, 740)
-on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
-# ecran + barre de presets
-bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548)).save(bar_img)
-# inverseur OCTAVE : milieu (off), haut (Fat), bas (Bright)
-ox, oy = LAY["octave"]
-box_oc = (ox - 62, oy - 50, ox + 102, oy + 50)
-oc_img = strip([crop_u(src, box_oc), crop_u(shot("pickle_octave.png"), box_oc), crop_u(shot("pickle_octave_bright.png"), box_oc)], os.path.join(TMP, "pickle_octave_sw.png"))
+    # inverseurs : les deux en bas (classique), CRUNCH haut, SCOOP haut
+    box_sw = (180, 300, 580, 410)
+    sw_img = strip([crop_u(shot(n), box_sw) for n in ("pickle_status.png", "pickle_crunch.png", "pickle_scoop.png")], os.path.join(TMP, "pickle_switches.png"))
+    # effet actif / bypass : PICKLE vert + LED jaune
+    box_on = (250, 560, 625, 740)
+    on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
+    # ecran + barre de presets
+    bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548)).save(bar_img)
+    # inverseur OCTAVE : milieu (off), haut (Fat), bas (Bright)
+    ox, oy = LAY["octave"]
+    box_oc = (ox - 62, oy - 50, ox + 102, oy + 50)
+    oc_img = strip([crop_u(src, box_oc), crop_u(shot("pickle_octave.png"), box_oc), crop_u(shot("pickle_octave_bright.png"), box_oc)], os.path.join(TMP, "pickle_octave_sw.png"))
 
-# ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
-a = np.asarray(src).astype(np.float32)
-hsv = cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2HSV)
-green = ((hsv[..., 0] > 30) & (hsv[..., 0] < 90) & (hsv[..., 1] > 55) & (hsv[..., 2] > 22)).astype(np.uint8)   # bords ombres du boitier compris
-ys, xs = np.where(green)
-x0, x1, y0, y1 = np.percentile(xs, 0.3), np.percentile(xs, 99.7), np.percentile(ys, 0.3), np.percentile(ys, 99.7)
-msk = np.zeros(green.shape, np.uint8)
-rr = int(30 * k)
-cv2.rectangle(msk, (int(x0) + rr, int(y0)), (int(x1) - rr, int(y1)), 255, -1)
-cv2.rectangle(msk, (int(x0), int(y0) + rr), (int(x1), int(y1) - rr), 255, -1)
-for cx_, cy_ in ((x0 + rr, y0 + rr), (x1 - rr, y0 + rr), (x0 + rr, y1 - rr), (x1 - rr, y1 - rr)):
-    cv2.circle(msk, (int(cx_), int(cy_)), rr, 255, -1)
-# jacks sur les tranches : seulement les pixels du metal (le fond gris du visuel autour est retire, pas de rectangle)
-jy0, jy1 = int(405 * k), int(565 * k)
-jw = int(40 * k)
-lum_ = a.mean(-1)
-for xa_, xb_, bgx in ((int(x0) - jw, int(x0) + 2, int(x0) - jw - int(12 * k)), (int(x1) - 2, int(x1) + jw, int(x1) + jw + int(4 * k))):
-    reg_ = lum_[jy0:jy1, xa_:xb_]
-    bg_ = np.median(lum_[jy0:jy1, bgx:bgx + int(8 * k)], axis=1, keepdims=True)
-    jm = (np.abs(reg_ - bg_) > 14).astype(np.uint8)
-    jm = cv2.morphologyEx(jm, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-    jm = cv2.morphologyEx(jm, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    n_, lab_, st_, _ = cv2.connectedComponentsWithStats(jm, 8)
-    if n_ > 1:
-        jm = (lab_ == 1 + np.argmax(st_[1:, 4])).astype(np.uint8)
-    pts_ = cv2.findNonZero(jm)
-    if pts_ is not None:                                       # contour net : enveloppe convexe de l'embase
-        jm = np.zeros_like(jm); cv2.fillConvexPoly(jm, cv2.convexHull(pts_), 1)
-    msk[jy0:jy1, xa_:xb_] = np.maximum(msk[jy0:jy1, xa_:xb_], jm * 255)
-msk = cv2.GaussianBlur(msk, (0, 0), 1.0)
-cut = Image.new("RGBA", src.size, (0, 0, 0, 0)); cut.paste(src, (0, 0), Image.fromarray(msk))
-cut = cut.crop(cut.getbbox())
-cw, ch = cut.size
-pad = int(cw * 0.16)
-canvas = Image.new("RGBA", (cw + 2 * pad, int(ch * 1.30) + pad), (0, 0, 0, 255))
-yy, xx = np.mgrid[0:canvas.height, 0:canvas.width].astype(np.float64)
-gcx, gcy = canvas.width / 2, pad + ch * 0.45
-glow = np.exp(-(((xx - gcx) / (cw * 0.62)) ** 2 + ((yy - gcy) / (ch * 0.48)) ** 2)) * 30
-edge = np.clip(np.minimum.reduce([xx, canvas.width - 1 - xx, yy, canvas.height - 1 - yy]) / (pad * 0.9), 0, 1)
-glow *= edge ** 2
-halo = np.dstack([glow * 0.35, glow * 0.95, glow * 0.30, np.full_like(glow, 255)]).astype(np.uint8)
-canvas = Image.alpha_composite(canvas, Image.fromarray(halo, "RGBA"))
-refl = cut.transpose(Image.FLIP_TOP_BOTTOM)
-ra = np.array(refl).astype(np.float64)
-fade = np.clip(1 - np.arange(refl.height) / (refl.height * 0.22), 0, 1) ** 1.6 * 0.22
-ra[..., 3] *= fade[:, None]
-canvas.alpha_composite(Image.fromarray(ra.astype(np.uint8), "RGBA"), (pad, pad + ch + 6))
-canvas.alpha_composite(cut, (pad, pad))
-canvas = canvas.crop((0, 0, canvas.width, pad + int(ch * 1.20)))
-cover = os.path.join(TMP, "pickle_cover_cutout.png"); canvas.convert("RGB").save(cover)
+    # ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
+    a = np.asarray(src).astype(np.float32)
+    hsv = cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2HSV)
+    green = ((hsv[..., 0] > 30) & (hsv[..., 0] < 90) & (hsv[..., 1] > 55) & (hsv[..., 2] > 22)).astype(np.uint8)   # bords ombres du boitier compris
+    ys, xs = np.where(green)
+    x0, x1, y0, y1 = np.percentile(xs, 0.3), np.percentile(xs, 99.7), np.percentile(ys, 0.3), np.percentile(ys, 99.7)
+    msk = np.zeros(green.shape, np.uint8)
+    rr = int(30 * k)
+    cv2.rectangle(msk, (int(x0) + rr, int(y0)), (int(x1) - rr, int(y1)), 255, -1)
+    cv2.rectangle(msk, (int(x0), int(y0) + rr), (int(x1), int(y1) - rr), 255, -1)
+    for cx_, cy_ in ((x0 + rr, y0 + rr), (x1 - rr, y0 + rr), (x0 + rr, y1 - rr), (x1 - rr, y1 - rr)):
+        cv2.circle(msk, (int(cx_), int(cy_)), rr, 255, -1)
+    # jacks sur les tranches : seulement les pixels du metal (le fond gris du visuel autour est retire, pas de rectangle)
+    jy0, jy1 = int(405 * k), int(565 * k)
+    jw = int(40 * k)
+    lum_ = a.mean(-1)
+    for xa_, xb_, bgx in ((int(x0) - jw, int(x0) + 2, int(x0) - jw - int(12 * k)), (int(x1) - 2, int(x1) + jw, int(x1) + jw + int(4 * k))):
+        reg_ = lum_[jy0:jy1, xa_:xb_]
+        bg_ = np.median(lum_[jy0:jy1, bgx:bgx + int(8 * k)], axis=1, keepdims=True)
+        jm = (np.abs(reg_ - bg_) > 14).astype(np.uint8)
+        jm = cv2.morphologyEx(jm, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+        jm = cv2.morphologyEx(jm, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        n_, lab_, st_, _ = cv2.connectedComponentsWithStats(jm, 8)
+        if n_ > 1:
+            jm = (lab_ == 1 + np.argmax(st_[1:, 4])).astype(np.uint8)
+        pts_ = cv2.findNonZero(jm)
+        if pts_ is not None:                                       # contour net : enveloppe convexe de l'embase
+            jm = np.zeros_like(jm); cv2.fillConvexPoly(jm, cv2.convexHull(pts_), 1)
+        msk[jy0:jy1, xa_:xb_] = np.maximum(msk[jy0:jy1, xa_:xb_], jm * 255)
+    msk = cv2.GaussianBlur(msk, (0, 0), 1.0)
+    cut = Image.new("RGBA", src.size, (0, 0, 0, 0)); cut.paste(src, (0, 0), Image.fromarray(msk))
+    cut = cut.crop(cut.getbbox())
+    cw, ch = cut.size
+    pad = int(cw * 0.16)
+    canvas = Image.new("RGBA", (cw + 2 * pad, int(ch * 1.30) + pad), (0, 0, 0, 255))
+    yy, xx = np.mgrid[0:canvas.height, 0:canvas.width].astype(np.float64)
+    gcx, gcy = canvas.width / 2, pad + ch * 0.45
+    glow = np.exp(-(((xx - gcx) / (cw * 0.62)) ** 2 + ((yy - gcy) / (ch * 0.48)) ** 2)) * 30
+    edge = np.clip(np.minimum.reduce([xx, canvas.width - 1 - xx, yy, canvas.height - 1 - yy]) / (pad * 0.9), 0, 1)
+    glow *= edge ** 2
+    halo = np.dstack([glow * 0.35, glow * 0.95, glow * 0.30, np.full_like(glow, 255)]).astype(np.uint8)
+    canvas = Image.alpha_composite(canvas, Image.fromarray(halo, "RGBA"))
+    refl = cut.transpose(Image.FLIP_TOP_BOTTOM)
+    ra = np.array(refl).astype(np.float64)
+    fade = np.clip(1 - np.arange(refl.height) / (refl.height * 0.22), 0, 1) ** 1.6 * 0.22
+    ra[..., 3] *= fade[:, None]
+    canvas.alpha_composite(Image.fromarray(ra.astype(np.uint8), "RGBA"), (pad, pad + ch + 6))
+    canvas.alpha_composite(cut, (pad, pad))
+    canvas = canvas.crop((0, 0, canvas.width, pad + int(ch * 1.20)))
+    cover = os.path.join(TMP, "pickle_cover_cutout.png"); canvas.convert("RGB").save(cover)
+    import shutil
+    os.makedirs(ASSETS, exist_ok=True)
+    for n in NAMES: shutil.copy(os.path.join(TMP, n), os.path.join(ASSETS, n))
+else:
+    annotated, sw_img, on_img, bar_img, oc_img, cover = [os.path.join(ASSETS, n) for n in NAMES]
 
 def img(path, width):
     im = Image.open(path); h = width * im.height / im.width
@@ -237,11 +247,11 @@ T = {
        ["Crunch", "MIDI Learn", "Switch: 64 or more = up"], ["Scoop", "MIDI Learn", "Switch: 64 or more = up"],
        ["Footswitch", "MIDI Learn", "Latching (127 = on / 0 = off) or momentary (toggle on each press)"],
        ["Octave", "MIDI Learn", "3 zones: 0-42 = off, 43-84 = Fat, 85-127 = Bright"]],
- learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b>, then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Clear all MIDI assignments</b> removes them all. The assignments are saved with the project.",
+ learn=["<b>MIDI Learn</b>: right-click a control, choose <b>MIDI Learn: &lt;name&gt; (CC n)</b> (<b>—</b> when nothing is assigned), then move your expression pedal or press the MIDI button. The screen shows <b>MIDI LEARN: move a control for Sustain</b>, then confirms for 2 seconds, e.g. <b>Sustain = CC 64</b>. A CC already used by another control is moved to the new one. <b>Clear MIDI</b> removes an assignment; right-click &gt; MIDI &gt; <b>Clear all MIDI assignments</b> removes them all. The assignments are saved with the project. Older projects that still had the former factory map (CC 20 to 26, never changed) open with no assignment; a project in which you had changed at least one assignment keeps its assignments.",
         "<b>Expression pedals</b>: movements are never stepped. Strong Pickle ramps to each new value over the time between two messages; the real travel of your pedal is learnt automatically (a pedal sending only 2 to 116 still reaches exactly 0 and 100 %). For a knob on CC 0 to 31, CC n+32 is read as its fine 14-bit part.",
         "<b>MIDI footswitch</b>: latching (default) or momentary, right-click &gt; Settings. <b>Program Change 1 to 13</b> recall the factory presets. All parameters can also be automated in the DAW."],
  win_t="7. Window",
- win=["Strong Pickle uses the single pedal format of Echoflex and Doorn: the window opens at its default size and can never be made smaller. Right-click &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b> or <b>100 %</b> for this window, \"(default)\" marking the default size; <b>Default size (new windows)</b> chooses the size at which new Strong Pickle windows open (shared by all instances) and resizes the current one at once. You can also drag the bottom-right corner up to 150 % (proportions are kept).",
+ win=["Strong Pickle uses the single pedal format of Echoflex and Doorn: it can never be made smaller than 60 %. Right-click &gt; <b>Plugin size</b>: <b>60 %</b>, <b>75 %</b> or <b>100 %</b> for this window, \"(default)\" marking the default size; <b>Default size (new windows)</b> chooses the size at which every new Strong Pickle window opens (one setting shared by all instances, saved on the computer) and resizes the current one at once. The size is not saved with the project: each time it is opened, the window comes back at the default size (60 % until you choose another one). You can also drag the bottom-right corner up to 150 % (proportions are kept).",
       "The <b>screen</b> shows the setting of the knob or switch you just moved (knobs in %, e.g. <i>sustain 64 %</i>, <i>crunch up (open)</i>); it appears when a setting moves and fades out after 2.5 s. It also shows the MIDI Learn messages. The <b>preset bar</b> under it always shows the current preset (or <i>Edited</i>) and the bypass state."],
  bar_cap="Screen and preset bar.",
  pre_t="8. Presets",
@@ -259,7 +269,7 @@ T = {
        ["Loudness", "muted to +12 dB; noon ≈ +4.5 dB over bypass"],
        ["Processing", "component-level circuit model (2N3904, 1N914; Octave: phase splitter and Schottky rectifier), 4x oversampling, smoothed parameters"], ["CPU", "about 12 to 25 % of one core at 48 kHz (stereo), depending on the computer"],
        ["MIDI", "all channels; MIDI Learn on the 7 controls (nothing assigned by default), 14-bit CC, Program Change 1-13"],
-       ["Window", "60 % (default) / 75 % / 100 %, up to 150 %, never smaller than the default size; anti-freeze v2 under Windows"]]),
+       ["Window", "Plugin size 60 % / 75 % / 100 %, default size of new windows to choose (60 % at first), up to 150 %, never smaller than 60 %; anti-freeze v2 under Windows"]]),
 "fr": dict(
  lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Présentation",
@@ -308,11 +318,11 @@ T = {
        ["Crunch", "MIDI Learn", "Bascule : 64 ou plus = en haut"], ["Scoop", "MIDI Learn", "Bascule : 64 ou plus = en haut"],
        ["Footswitch", "MIDI Learn", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"],
        ["Octave", "MIDI Learn", "3 zones : 0-42 = off, 43-84 = Fat, 85-127 = Bright"]],
- learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b>, puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Clear all MIDI assignments</b> les retire toutes. Les assignations sont sauvegardées avec le projet.",
+ learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b> (<b>—</b> si rien n'est assigné), puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Clear all MIDI assignments</b> les retire toutes. Les assignations sont sauvegardées avec le projet. Les anciens projets restés sur l'ancienne table d'usine (CC 20 à 26, jamais modifiée) s'ouvrent sans assignation ; un projet où vous aviez changé au moins une assignation garde ses assignations.",
         "<b>Pédales d'expression</b> : les mouvements ne sont jamais saccadés. Strong Pickle rejoint chaque nouvelle valeur par une rampe sur le temps mesuré entre deux messages ; la course réelle de votre pédale est apprise automatiquement (une pédale qui n'envoie que 2 à 116 atteint quand même exactement 0 et 100 %). Pour un potard sur un CC de 0 à 31, le CC n+32 est lu comme sa partie fine (14 bits).",
         "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 13</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
  win_t="7. Fenêtre",
- win=["Strong Pickle utilise le format pédale simple d'Echoflex et de Doorn : la fenêtre s'ouvre à sa taille par défaut et ne peut jamais être réduite en dessous. Clic droit &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b> ou <b>100 %</b> pour cette fenêtre, « (default) » indiquant la taille par défaut ; <b>Default size (new windows)</b> choisit la taille à laquelle s'ouvrent les nouvelles fenêtres de Strong Pickle (réglage commun à toutes les instances) et redimensionne aussitôt la fenêtre courante. Vous pouvez aussi tirer le coin en bas à droite jusqu'à 150 % (les proportions sont conservées).",
+ win=["Strong Pickle utilise le format pédale simple d'Echoflex et de Doorn : elle ne peut jamais être réduite sous 60 %. Clic droit &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b> ou <b>100 %</b> pour cette fenêtre, « (default) » indiquant la taille par défaut ; <b>Default size (new windows)</b> choisit la taille d'ouverture de toutes les nouvelles fenêtres de Strong Pickle (réglage commun à toutes les instances, enregistré sur l'ordinateur) et redimensionne aussitôt la fenêtre courante. La taille n'est pas sauvegardée avec le projet : à chaque ouverture, la fenêtre revient à la taille par défaut (60 % tant que vous n'en avez pas choisi une autre). Vous pouvez aussi tirer le coin en bas à droite jusqu'à 150 % (les proportions sont conservées).",
       "L'<b>écran</b> affiche le réglage du potard ou de l'inverseur que vous venez de bouger (potards en %, par ex. <i>sustain 64 %</i>, <i>crunch up (open)</i>) ; il apparaît quand un réglage bouge et s'efface au bout de 2,5 s. Il affiche aussi les messages du MIDI Learn. La <b>barre de presets</b> en dessous affiche en permanence le preset (ou <i>Edited</i>) et l'état du bypass."],
  bar_cap="Écran et barre de presets.",
  pre_t="8. Presets",
@@ -330,7 +340,7 @@ T = {
        ["Loudness", "coupé à +12 dB ; midi ≈ +4,5 dB au-dessus du bypass"],
        ["Traitement", "modèle du circuit composant par composant (2N3904, 1N914 ; Octave : déphaseur et redresseur Schottky), sur-échantillonnage x4, paramètres lissés"], ["Processeur", "environ 12 à 25 % d'un cœur à 48 kHz (stéréo), selon l'ordinateur"],
        ["MIDI", "tous les canaux ; MIDI Learn sur les 7 commandes (rien d'assigné par défaut), CC 14 bits, Program Change 1-13"],
-       ["Fenêtre", "60 % (default) / 75 % / 100 %, jusqu'à 150 %, jamais plus petite que la taille par défaut ; anti-gel v2 sous Windows"]]),
+       ["Fenêtre", "Plugin size 60 % / 75 % / 100 %, taille par défaut des nouvelles fenêtres au choix (60 % au départ), jusqu'à 150 %, jamais sous 60 % ; anti-gel v2 sous Windows"]]),
 }
 
 W = A4[0] - 36 * mm
