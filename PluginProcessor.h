@@ -7,7 +7,7 @@
 #include "PickleDSP.h"
 
 //==============================================================================
-// STRONG PICKLE (Studio Wiga) - reproduction de la fuzz Way Huge Swollen Pickle MkIII.
+// STRONG PICKLE (NINE HANDS | DSP) - reproduction de la fuzz Way Huge Swollen Pickle MkIII.
 // Voir README.md et PickleDSP.h.
 //==============================================================================
 

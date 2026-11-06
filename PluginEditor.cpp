@@ -349,7 +349,7 @@ void PickleAudioProcessorEditor::resized()
 }
 
 //==============================================================================
-// Anti-gel v2 (Studio Wiga) :
+// Anti-gel v2 (NINE HANDS | DSP) :
 //  1. moteur de rendu logiciel force sur Windows, applique a chaque nouvelle fenetre hote (peer)
 //     et reverifie toutes les secondes, jamais en boucle ;
 //  2. aucun calcul lourd dans paint() : caches reconstruits par le timer seulement ;
@@ -793,7 +793,7 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
     midi.addItem (911, "Program Change 1-" + String (PickleAudioProcessor::getNumFactoryPresets()) + "  Factory presets", false);
     menu.addSubMenu ("MIDI", midi);
     menu.addSeparator();
-    menu.addItem (999, "Strong Pickle fuzz v" + String (JucePlugin_VersionString) + " - STUDIO WIGA", false);
+    menu.addItem (999, "Strong Pickle fuzz v" + String (JucePlugin_VersionString) + " - NINE HANDS | DSP", false);
 
     menu.showMenuAsync (PopupMenu::Options().withTargetComponent (this),
         [safe = Component::SafePointer<PickleAudioProcessorEditor> (this)] (int r)

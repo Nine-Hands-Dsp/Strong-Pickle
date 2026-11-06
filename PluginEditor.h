@@ -21,7 +21,7 @@ public:
 };
 
 //==============================================================================
-// Inverseur a levier du kit Studio Wiga (3 images : bas, intermediaire ~55 ms, haut)
+// Inverseur a levier du kit NINE HANDS | DSP (3 images : bas, intermediaire ~55 ms, haut)
 //==============================================================================
 class LeverSwitch : public juce::Component
 {

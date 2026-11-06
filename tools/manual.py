@@ -1,4 +1,4 @@
-# STRONG PICKLE (Studio Wiga) - notice PDF bilingue (anglais puis francais), illustree avec le rendu reel du plugin.
+# STRONG PICKLE (NINE HANDS | DSP) - notice PDF bilingue (anglais puis francais), illustree avec le rendu reel du plugin.
 # Usage : python3 tools/manual.py [<dossier des captures (tools/render)>] <fichier PDF de sortie>
 #   avec captures : recompose les images et les copie dans tools/manual_assets/ ;
 #   sans captures : reprend les images composees de tools/manual_assets/ (extraites de la notice precedente).
@@ -202,13 +202,13 @@ T = {
 "en": dict(
  lang="ENGLISH", sub="Jumbo fuzz &nbsp;·&nbsp; VST3 for Windows and macOS", ver="User manual &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Introduction",
- intro=["<b>STRONG PICKLE</b> is a Studio Wiga plugin modelled on the <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, \"Smalls\" series), a Big Muff-family fuzz known for its huge low end, its enormous volume reserve and its sputtery character halfway up the Sustain knob.",
+ intro=["<b>STRONG PICKLE</b> is a NINE HANDS | DSP plugin modelled on the <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, \"Smalls\" series), a Big Muff-family fuzz known for its huge low end, its enormous volume reserve and its sputtery character halfway up the Sustain knob.",
         "Since version 1.1 the circuit is modelled <b>component by component</b> and solved at every sample (Newton's method on the node voltages, 4x oversampling): a 2N3904 input stage, the Sustain divider, two 2N3904 clipping stages (470 k feedback, 330 pF Miller capacitor, 1N914 diodes in series with a 1 µF capacitor from collector to base, 150 nF / 100 nF coupling into 10 k: the low end is trimmed before the clipping, so the fuzz stays defined instead of smearing), the passive Filter tone stack, the output stage and Loudness. Nothing is added on top: the gain, the square-wave grain, the asymmetry, the way notes decay and sputter all come from the transistors and capacitors themselves. The coupling and tone values give the low end of the \"jumbo\" Pickle voice.",
         "Strong Pickle adds an <b>OCTAVE</b> switch that the original pedal does not have, modelled on the octave-up circuit of the <b>Fulltone Ultimate Octave</b> (a descendant of the Foxx Tone Machine): a phase splitter drives two Schottky diodes that full-wave rectify the signal before the fuzz, with its Fat and Bright voicings."],
  inst_t="2. Installation",
- inst=[("Windows", "Download the <b>StrongPickle-VST3-Windows</b> artifact from the Actions tab of the GitHub repository studiowiga/strong-pickle-, unzip it and copy the <b>Strong Pickle.vst3</b> folder into <b>C:\\Program Files\\Common Files\\VST3</b>."),
+ inst=[("Windows", "Download the <b>StrongPickle-VST3-Windows</b> artifact from the Actions tab of the GitHub repository Nine-Hands-Dsp/strong-pickle-, unzip it and copy the <b>Strong Pickle.vst3</b> folder into <b>C:\\Program Files\\Common Files\\VST3</b>."),
        ("macOS", "Download <b>StrongPickle-VST3-macOS</b>, unzip it and copy <b>Strong Pickle.vst3</b> into <b>~/Library/Audio/Plug-Ins/VST3</b>. If macOS blocks it, run <b>xattr -cr ~/Library/Audio/Plug-Ins/VST3/Strong\\ Pickle.vst3</b> in the Terminal. The binary is universal (Apple Silicon and Intel)."),
-       ("Reaper", "Options &gt; Preferences &gt; Plug-ins &gt; VST &gt; <b>Re-scan</b>. The plugin appears as <b>Strong Pickle (Studio Wiga)</b>. To control it from MIDI footswitches and expression pedals, the track must receive MIDI from the controller (record-arm or input monitoring, MIDI input set to your device, e.g. the M-Vave Chocolate Plus).")],
+       ("Reaper", "Options &gt; Preferences &gt; Plug-ins &gt; VST &gt; <b>Re-scan</b>. The plugin appears as <b>Strong Pickle (NINE HANDS | DSP)</b>. To control it from MIDI footswitches and expression pedals, the track must receive MIDI from the controller (record-arm or input monitoring, MIDI input set to your device, e.g. the M-Vave Chocolate Plus).")],
  ov_t="3. Interface overview",
  ov_rows=[["#", "Control", "Role"],
    ["1", "LOUDNESS", "Output volume. Drag up / down, mouse wheel, double-click = noon, right-click = MIDI Learn (true for every control)."],
@@ -273,13 +273,13 @@ T = {
 "fr": dict(
  lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Présentation",
- intro=["<b>STRONG PICKLE</b> est un plugin Studio Wiga inspiré de la <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, série « Smalls »), une fuzz de la famille Big Muff connue pour son grave énorme, sa réserve de volume considérable et ses crachotements à mi-course du potard Sustain.",
+ intro=["<b>STRONG PICKLE</b> est un plugin NINE HANDS | DSP inspiré de la <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, série « Smalls »), une fuzz de la famille Big Muff connue pour son grave énorme, sa réserve de volume considérable et ses crachotements à mi-course du potard Sustain.",
         "Depuis la version 1.1, le circuit est reproduit <b>composant par composant</b> et résolu à chaque échantillon (méthode de Newton sur les tensions des nœuds, sur-échantillonnage x4) : étage d'entrée à 2N3904, diviseur Sustain, deux étages d'écrêtage à 2N3904 (contre-réaction 470 k, condensateur Miller 330 pF, diodes 1N914 en série avec un condensateur de 1 µF entre collecteur et base, liaisons 150 nF / 100 nF sur 10 k : le grave est réduit avant l'écrêtage, la fuzz reste définie au lieu de baver), tone stack passif Filter, étage de sortie et Loudness. Rien n'est ajouté par-dessus : le gain, le grain carré, la dissymétrie, la façon dont les notes s'éteignent et crachotent viennent des transistors et des condensateurs eux-mêmes. Les valeurs de liaison et de tonalité donnent le grave de la voix « jumbo » de la Pickle.",
         "Strong Pickle ajoute un inverseur <b>OCTAVE</b> que la pédale d'origine n'a pas, reproduit d'après le circuit d'octave de la <b>Fulltone Ultimate Octave</b> (descendante de la Foxx Tone Machine) : un déphaseur attaque deux diodes Schottky qui redressent le signal en double alternance, avant la fuzz, avec ses deux voix Fat et Bright."],
  inst_t="2. Installation",
- inst=[("Windows", "Téléchargez l'artefact <b>StrongPickle-VST3-Windows</b> dans l'onglet Actions du dépôt GitHub studiowiga/strong-pickle-, décompressez-le et copiez le dossier <b>Strong Pickle.vst3</b> dans <b>C:\\Program Files\\Common Files\\VST3</b>."),
+ inst=[("Windows", "Téléchargez l'artefact <b>StrongPickle-VST3-Windows</b> dans l'onglet Actions du dépôt GitHub Nine-Hands-Dsp/strong-pickle-, décompressez-le et copiez le dossier <b>Strong Pickle.vst3</b> dans <b>C:\\Program Files\\Common Files\\VST3</b>."),
        ("macOS", "Téléchargez <b>StrongPickle-VST3-macOS</b>, décompressez-le et copiez <b>Strong Pickle.vst3</b> dans <b>~/Bibliothèque/Audio/Plug-Ins/VST3</b>. Si macOS le bloque, tapez <b>xattr -cr ~/Library/Audio/Plug-Ins/VST3/Strong\\ Pickle.vst3</b> dans le Terminal. Le binaire est universel (Apple Silicon et Intel)."),
-       ("Reaper", "Options &gt; Préférences &gt; Plug-ins &gt; VST &gt; <b>Re-scan</b>. Le plugin apparaît sous le nom <b>Strong Pickle (Studio Wiga)</b>. Pour le piloter avec des footswitchs et pédales d'expression MIDI, la piste doit recevoir le MIDI du contrôleur (armement ou monitoring d'entrée, entrée MIDI réglée sur votre appareil, par exemple la M-Vave Chocolate Plus).")],
+       ("Reaper", "Options &gt; Préférences &gt; Plug-ins &gt; VST &gt; <b>Re-scan</b>. Le plugin apparaît sous le nom <b>Strong Pickle (NINE HANDS | DSP)</b>. Pour le piloter avec des footswitchs et pédales d'expression MIDI, la piste doit recevoir le MIDI du contrôleur (armement ou monitoring d'entrée, entrée MIDI réglée sur votre appareil, par exemple la M-Vave Chocolate Plus).")],
  ov_t="3. Vue d'ensemble de l'interface",
  ov_rows=[["#", "Commande", "Rôle"],
    ["1", "LOUDNESS", "Volume de sortie. Glisser vers le haut / le bas, molette, double-clic = midi, clic droit = MIDI Learn (valable pour toutes les commandes)."],
@@ -390,12 +390,12 @@ def deco(c, doc):
     c.setFillColor(DARK); c.rect(0, A4[1] - 6 * mm, A4[0], 6 * mm, stroke=0, fill=1)
     c.setFillColor(ACC); c.rect(0, A4[1] - 6.8 * mm, A4[0], 0.8 * mm, stroke=0, fill=1)
     c.setFont("Pop", 7.5); c.setFillColor(GREY)
-    c.drawString(18 * mm, 10 * mm, "Strong Pickle (Studio Wiga) · v" + VERSION)
+    c.drawString(18 * mm, 10 * mm, "Strong Pickle (NINE HANDS | DSP) · v" + VERSION)
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, str(doc.page))
     c.restoreState()
 
 doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
-                      title="STRONG PICKLE - Manual / Notice v" + VERSION, author="Studio Wiga")
+                      title="STRONG PICKLE - Manual / Notice v" + VERSION, author="NINE HANDS | DSP")
 def cover_bg(c, doc):
     c.saveState(); c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
     c.setFillColor(ACC); c.rect(0, A4[1] - 3 * mm, A4[0], 3 * mm, stroke=0, fill=1); c.restoreState()

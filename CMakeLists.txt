@@ -32,7 +32,7 @@ juce_add_binary_data(StrongPickleAssets SOURCES
 set_target_properties(StrongPickleAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 juce_add_plugin(StrongPickle
-  COMPANY_NAME "Studio Wiga"
+  COMPANY_NAME "NINE HANDS | DSP"
   PLUGIN_MANUFACTURER_CODE Wiga
   PLUGIN_CODE WgSp
   BUNDLE_ID com.studiowiga.strongpickle

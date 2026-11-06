@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "NineHandsFolder.h"
 #include "PluginEditor.h"
 
 using namespace juce;
@@ -317,7 +318,7 @@ void PickleAudioProcessor::applyFactoryPreset (int index)
 File PickleAudioProcessor::getUserPresetFile()
 {
     return File::getSpecialLocation (File::userApplicationDataDirectory)
-             .getChildFile ("Studio Wiga").getChildFile ("Strong Pickle").getChildFile ("UserPresets.xml");
+             .getChildFile (nhd::folderName()).getChildFile ("Strong Pickle").getChildFile ("UserPresets.xml");
 }
 
 static const char* presetIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "octave" };

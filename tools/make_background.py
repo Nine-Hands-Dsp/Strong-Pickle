@@ -1,5 +1,5 @@
 """
-Strong Pickle (Studio Wiga) - fond du plugin a partir du visuel fourni (design/source/strong_pickle_visuel.png).
+Strong Pickle (NINE HANDS | DSP) - fond du plugin a partir du visuel fourni (design/source/strong_pickle_visuel.png).
 
 Le visuel est la reference : son eclairage (lumiere en haut a gauche) et son grain sont conserves.
 Le visuel (912 x 1152) a exactement les proportions du cadre 760 x 958 : 1 px du visuel = 0,8333 unite.
@@ -379,7 +379,7 @@ _copy_ring(TOGS_PX[1][0], TOGS_PX[1][1], OCT_PX[0], OCT_PX[1])
 OCTLEDU = ((OCT_PX[0] - 88.0) / PX, OCT_PX[1] / PX)    # LED d'octave, a gauche de l'inverseur
 
 # ------------------------------------------------------------------ 6b. motif du cornichon sur la coque (v1.4, design fourni)
-# design/source/strong_pickle_motif_seul.png = le dessin seul (trait creme sur fond gris), fourni par Studio Wiga.
+# design/source/strong_pickle_motif_seul.png = le dessin seul (trait creme sur fond gris), fourni par NINE HANDS | DSP.
 # Il est recale exactement sur le visuel de reference (design/source/strong_pickle_visuel_motif.jpg : matrice affine
 # mesuree par correlation ECC), puis (v1.4.1) reduit de 12 % autour de son coin bas gauche et descendu de 35 unites (~3 mm).
 # Le trait est agrandi, son contour rendu net, puis peint a l'encre creme avec le grain de la peinture. Il passe

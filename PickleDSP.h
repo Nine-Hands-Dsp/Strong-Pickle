@@ -1,6 +1,6 @@
 #pragma once
 //==============================================================================
-// STRONG PICKLE (Studio Wiga) - moteur audio, sans dependance JUCE (testable hors plugin).
+// STRONG PICKLE (NINE HANDS | DSP) - moteur audio, sans dependance JUCE (testable hors plugin).
 //
 // Reproduction de la Way Huge Swollen Pickle Jumbo Fuzz MkIII (WM41, « Smalls »),
 // une fuzz de la famille Big Muff (4 etages a transistors + tone stack passif) :

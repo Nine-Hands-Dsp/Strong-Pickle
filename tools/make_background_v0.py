@@ -1,13 +1,13 @@
 """
-Strong Pickle (Studio Wiga) - fond du plugin, design original (aucune photo de la pedale d'origine).
+Strong Pickle (NINE HANDS | DSP) - fond du plugin, design original (aucune photo de la pedale d'origine).
 
 Boitier compact facon « Smalls » (pedale simple), peinture vert cornichon metallisee a paillettes,
-relief de « verrues » de cornichon, inscriptions creme, logo Studio Wiga.
+relief de « verrues » de cornichon, inscriptions creme, logo NINE HANDS | DSP.
 Une seule lumiere pour toute la pedale : en haut a gauche (ombres portees vers le bas a droite).
 
 Sorties (cadre 1520 x 1916 = 2 x 760 x 958, cadrage Echoflex / Doorn) :
   background.jpg      fond (pedale sans les pieces mobiles : reperes des potards, inverseurs, LED allumee)
-  toggle_strip.png    inverseur a levier du kit Studio Wiga (FreakOut), 3 images carrees : bas, intermediaire, haut
+  toggle_strip.png    inverseur a levier du kit NINE HANDS | DSP (FreakOut), 3 images carrees : bas, intermediaire, haut
   glow_blue.png       calque d'eclairage de la facade par la LED bleue (alpha : seule la lumiere ajoutee)
   Layout.h            reperes en unites 760 x 958
   tools/layout.json   memes reperes (notice)
@@ -251,7 +251,7 @@ for kname, (cx, cy) in KNOBS.items():
 tk = np.asarray(tick).astype(np.float32) / 255 * 0.85
 img = img * (1 - tk[..., None]) + inkc * tk[..., None]
 
-# logo Studio Wiga (blanc) en bas
+# logo NINE HANDS | DSP (blanc) en bas
 logo = Image.open(os.path.join(AS, 'logo_studio_wiga_blanc.png')).convert('RGBA')
 LW = int(U(190)); logo = logo.resize((LW, round(logo.height * LW / logo.width)), Image.LANCZOS)
 la = np.asarray(logo).astype(np.float32) / 255
@@ -331,7 +331,7 @@ shadow = np.zeros((H2, W2), np.float32); shadow[ya + 4:ya + 4 + ln_, xa + 3:xa +
 img *= (1 - 0.5 * blur(shadow, 2.0)[..., None])
 img[ya:ya + ln_, xa:xa + ln_] = img[ya:ya + ln_, xa:xa + ln_] * (1 - lmask[..., None]) + lrgb * lmask[..., None]
 
-# ------------------------------------------------------------------ 7. footswitch d'Echoflex (reference Studio Wiga)
+# ------------------------------------------------------------------ 7. footswitch d'Echoflex (reference NINE HANDS | DSP)
 fs = Image.open(os.path.join(HERE, 'fs_echoflex.png')).convert('RGBA')      # 200 unites (ombre comprise), 124 entre plats
 fsk = FOOT_FLATS / 124.0
 fs = fs.resize((round(fs.width * fsk), round(fs.height * fsk)), Image.LANCZOS)
