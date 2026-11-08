@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -258,7 +258,7 @@ T = {
  pre=["Use the arrows of the preset bar, click its name, right-click anywhere, or use the preset menu of your DAW. Right-click &gt; <b>Save user preset</b> stores up to 9 presets of your own."],
  fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop · Octave", "Description"],
  tips_t="9. Tips",
- tips=["In Reaper place Strong Pickle <b>before</b> your amp simulator (for example before Two Notes Genome), with a clean or slightly crunchy amp, as you would with the real pedal.",
+ tips=["In Reaper place Strong Pickle <b>before</b> your amp simulator (for example before Ampire, followed by Impulse for the cab), with a clean or slightly crunchy amp, as you would with the real pedal.",
        "For a 7-string in G or lower tunings, keep Sustain under noon and Filter slightly down: the low strings stay defined instead of sputtering. Above noon, palm mutes turn into a wall.",
        "Turn Loudness down before raising Sustain: the volume reserve is huge.",
        "Like many fuzzes, it reacts to your guitar volume knob: roll it back to clean up the fuzz."],
@@ -329,7 +329,7 @@ T = {
  pre=["Utilisez les flèches de la barre de presets, cliquez sur son nom, faites un clic droit n'importe où, ou passez par le menu de presets de votre DAW. Clic droit &gt; <b>Save user preset</b> enregistre jusqu'à 9 presets personnels."],
  fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop · Octave", "Description"],
  tips_t="9. Conseils d'utilisation",
- tips=["Dans Reaper, placez Strong Pickle <b>avant</b> votre simulateur d'ampli (par exemple avant Two Notes Genome), avec un ampli clair ou légèrement crunch, comme avec la vraie pédale.",
+ tips=["Dans Reaper, placez Strong Pickle <b>avant</b> votre simulateur d'ampli (par exemple avant Ampire, suivi d'Impulse pour le baffle), avec un ampli clair ou légèrement crunch, comme avec la vraie pédale.",
        "Pour une 7 cordes en Sol ou des accordages plus bas, gardez le Sustain sous midi et le Filter un peu baissé : les cordes graves restent définies au lieu de crachoter. Au-delà de midi, les palm mutes deviennent un mur.",
        "Baissez le Loudness avant de monter le Sustain : la réserve de volume est énorme.",
        "Comme beaucoup de fuzz, elle réagit au potard de volume de la guitare : baissez-le pour éclaircir la fuzz."],
