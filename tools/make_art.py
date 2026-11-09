@@ -72,7 +72,7 @@ STATUS = (NX(195.0), NY(454.17), 371.67 * KXn, 47.5 * SV)
 PRESET = (NX(185.0), NY(510.0), 390.83 * KXn, 32.5 * SV)
 JACK_Y = NY(487.0)
 LOGO_C, LOGO_W = (CX, NY(905.4)), 190.0
-LED_LENS = 7.6 * SV
+LED_LENS = 10.0 * SV                               # v1.5.0 : LED un peu plus grandes (demande)
 FS_FLATS = 96.0 * SV
 # cornichon : gravure vectorielle (design/source/cornichon.svg), place comme en v1.4.1 (reduit de 12 %, descendu ~3 mm)
 
@@ -165,7 +165,7 @@ text(CX, NY(654.5), 'FUZZ', 'medium', 19.0, 8.0)
 # inverseur OCTAVE : FAT au-dessus, BRIGHT en dessous, OCTAVE a droite (comme en v1.4.1)
 text(OCT[0], OCT[1] - 50.0 * SV, 'FAT', 'medium', 12.5, 1.6)        # au-dessus du bout du levier (position haute)
 text(OCT[0], OCT[1] + 47.0 * SV, 'BRIGHT', 'medium', 12.5, 1.6)
-text(OCT[0] + TOG_R + 7.0, OCT[1], 'OCTAVE', 'medium', LAB_EM, LAB_TR, anchor='l')
+text(OCT[0] + TOG_R + 7.0, OCT[1], 'OCTAVE', 'medium', 12.5, 1.6, anchor='l')        # meme taille que FAT / BRIGHT
 # OUT / IN a la hauteur des jacks (horizontaux, comme sur le visuel)
 text(NX(163.3), JACK_Y, 'OUT', 'medium', 15.0, 1.8)
 text(NX(596.7), JACK_Y, 'IN', 'medium', 15.0, 1.8)

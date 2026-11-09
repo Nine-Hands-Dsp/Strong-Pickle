@@ -9,7 +9,7 @@ namespace layout
     const float knobR[3] = { 58.78f, 58.78f, 48.01f };
     const juce::Point<float> crunchPos { 145.11f, 332.58f }, scoopPos { 472.39f, 332.38f }, octavePos { 472.39f, 658.94f };
     const float togS = 85.83f, togR = 23.84f;   // sprite d'inverseur (cote) / rondelle
-    const juce::Point<float> ledPos { 308.75f, 658.94f }, octLedPos { 421.54f, 658.94f }; const float ledS = 18.87f;
+    const juce::Point<float> ledPos { 308.75f, 658.94f }, octLedPos { 421.54f, 658.94f }; const float ledS = 24.83f;
     const juce::Rectangle<float> glowRect { 197.51f, 547.58f, 222.47f, 222.47f }, octGlowRect { 310.27f, 547.58f, 222.47f, 222.47f };
     const juce::Point<float> fsPos { 308.75f, 769.04f }; const float footR = 36.13f, fsS = 181.19f;   // bouton / sprite
     const juce::Rectangle<float> statusRect { 95.11f, 428.81f, 429.21f, 47.19f }, presetRect { 83.56f, 484.27f, 451.34f, 32.28f };
@@ -28,7 +28,7 @@ namespace layout
         { "FUZZ", 0, 19.21f, 8.09f, 308.75f, 627.81f, 0.00f },
         { "FAT", 0, 12.64f, 1.62f, 472.39f, 609.27f, 0.00f },
         { "BRIGHT", 0, 12.64f, 1.62f, 472.39f, 705.63f, 0.00f },
-        { "OCTAVE", 0, 17.19f, 2.22f, 543.56f, 658.94f, 0.00f },
+        { "OCTAVE", 0, 12.64f, 1.62f, 532.86f, 658.94f, 0.00f },
         { "OUT", 0, 15.17f, 1.82f, 58.50f, 461.42f, 0.00f },
         { "IN", 0, 15.17f, 1.82f, 559.00f, 461.42f, 0.00f }
     };

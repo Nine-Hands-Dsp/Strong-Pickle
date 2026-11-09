@@ -583,7 +583,7 @@ void PickleAudioProcessorEditor::drawLeds (Graphics& g)
         const float hs = layout::ledS * 0.5f;
         if (ledOn.isValid()) { g.setOpacity (level); g.drawImage (ledOn, { c.x - hs, c.y - hs, hs * 2.0f, hs * 2.0f }); }
         g.setOpacity (1.0f);
-        const float hr = 16.0f;
+        const float hr = 20.0f;
         ColourGradient halo (ledYellow.withAlpha (0.28f * level), c.x, c.y, ledYellow.withAlpha (0.0f), c.x + hr, c.y, true);
         halo.addColour (0.4, ledYellow.withAlpha (0.07f * level));
         g.setGradientFill (halo);
