@@ -370,27 +370,32 @@ def deco(c, doc):
 
 doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
                       title="STRONG PICKLE - Notice v" + VERSION, author="NINE HANDS | DSP")
-# ---- Couverture : gabarit fixe commun a toutes les notices (mm depuis le haut de la page A4) ----
+# ---- Couverture « minimale » (modele 6, valide nov. 2026) : gabarit fixe commun a toutes les notices ----
+# Mesures en mm depuis le HAUT de la page A4, sauf le logo (depuis le bas). Aucun autre element.
 COVER_TEXT = {}
-PEDAL_H, PEDAL_MAXW = 108 * mm, 150 * mm
-PEDAL_TOP = (A4[1] - PEDAL_H) / 2                                 # pedale (boitier + jacks, sans reflet) : 108 mm de haut, centree sur la page
-NAME_TOP, SUB_TOP = PEDAL_TOP + PEDAL_H + 24 * mm, PEDAL_TOP + PEDAL_H + 41.7 * mm   # nom espace / mention courte (pas de ligne de version)
-LOGO_W, LOGO_BOTTOM = 52 * mm, 20 * mm                            # logo blanc en bas de page
+COVER_NAME = "STRONG PICKLE"
+PEDAL_H, PEDAL_MAXW, PEDAL_TOP = 82 * mm, 115 * mm, 84 * mm      # pedale (boitier + jacks, sans reflet) centree horizontalement
+LANG_TOP = 18 * mm                                               # « FRANÇAIS » centre, Poppins Medium 8,5 pt, vert clair
+NAME_TOP, NAME_PT = 194 * mm, 30                                 # nom : Barlow Condensed ExtraBold 30 pt, approche 0,5 x corps
+SUB_TOP, SUB_PT = 208 * mm, 10                                   # mention courte : Poppins 10 pt, approche 1,5 pt, gris clair
+LOGO_W, LOGO_BOTTOM = 38 * mm, 22 * mm                           # logo blanc centre en bas
+BAND_H = 3 * mm                                                  # bandeau couleur d'accent en BAS de page
 def cover_bg(c, doc):
     c.saveState(); c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
-    c.setFillColor(ACC); c.rect(0, A4[1] - 3 * mm, A4[0], 3 * mm, stroke=0, fill=1)
-    def at(par, top, x=18 * mm):
-        w, h = par.wrap(A4[0] - 2 * x, 100 * mm); par.drawOn(c, x, A4[1] - top - h)
-    at(P(COVER_TEXT["lang"], "coverlang"), 20.1 * mm, 18 * mm + 6)
+    c.setFillColor(ACC); c.rect(0, 0, A4[0], BAND_H, stroke=0, fill=1)
+    def line(text, top, font, size, cs, col):
+        w = pdfmetrics.stringWidth(text, font, size) + cs * (len(text) - 1)
+        t = c.beginText((A4[0] - w) / 2, A4[1] - top - size * 0.8); t.setFont(font, size); t.setCharSpace(cs)
+        t.setFillColor(col); t.textOut(text); c.drawText(t)
+    line(COVER_TEXT["lang"], LANG_TOP, "PopM", 8.5, 0, ACC_L)
     ci = Image.open(cover); iw, ih = ci.size
     cw = iw / 1.32; ch = (ih - int(cw * 0.16)) / 1.2; pad = int(cw * 0.16)     # geometrie de pickle_cover_cutout.png
     k = min(PEDAL_H / ch, PEDAL_MAXW / cw)
     dw, dh = iw * k, ih * k
     y0 = A4[1] - (PEDAL_TOP + (PEDAL_H - ch * k) / 2) + pad * k            # haut de l'image (pedale centree dans sa boite)
     c.drawImage(cover, (A4[0] - dw) / 2, y0 - dh, dw, dh)
-    c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1] - NAME_TOP + 2 * mm, stroke=0, fill=1)   # coupe le reflet sous le nom
-    at(P("S T R O N G &nbsp; P I C K L E", "cover"), NAME_TOP - 2 * mm)
-    at(P(COVER_TEXT["sub"], "coversub"), SUB_TOP)
+    line(COVER_NAME, NAME_TOP - NAME_PT * 0.02, "Title", NAME_PT, NAME_PT * 0.5, colors.white)
+    line(COVER_TEXT["sub"], SUB_TOP, "Pop", SUB_PT, 1.5, colors.HexColor("#BDC4B8"))
     lw, lh = Image.open(LOGO_PNG).size
     c.drawImage(LOGO_PNG, (A4[0] - LOGO_W) / 2, LOGO_BOTTOM, LOGO_W, LOGO_W * lh / lw, mask="auto")
     c.restoreState()
