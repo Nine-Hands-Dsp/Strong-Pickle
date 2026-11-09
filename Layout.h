@@ -12,7 +12,7 @@ namespace layout
     const juce::Point<float> ledPos { 308.75f, 658.94f }, octLedPos { 421.54f, 658.94f }; const float ledS = 24.83f;
     const juce::Rectangle<float> glowRect { 197.51f, 547.58f, 222.47f, 222.47f }, octGlowRect { 310.27f, 547.58f, 222.47f, 222.47f };
     const juce::Point<float> fsPos { 308.75f, 769.04f }; const float footR = 36.13f, fsS = 181.19f;   // bouton / sprite
-    const juce::Rectangle<float> statusRect { 95.11f, 428.81f, 429.21f, 47.19f }, presetRect { 83.56f, 484.27f, 451.34f, 32.28f };
+    const juce::Rectangle<float> statusRect { 108.75f, 428.81f, 400.00f, 47.19f }, presetRect { 108.75f, 484.27f, 400.00f, 32.28f };
     const float statusFont = 26.29f, presetFont = 17.70f;
     const juce::Rectangle<float> boxRect { 21.49f, 0.00f, 574.52f, 900.00f }, pickleGlowRect { 179.82f, 542.53f, 257.87f, 92.02f };
     const float jackY = 461.42f;

@@ -68,8 +68,9 @@ OCT = (NX(521.7), NY(685.83))                      # inverseur OCTAVE 3 position
 LED = (CX, NY(685.83))
 OCT_LED = (NX(477.67), NY(685.83))
 FS = (CX, NY(796.67))
-STATUS = (NX(195.0), NY(454.17), 371.67 * KXn, 47.5 * SV)
-PRESET = (NX(185.0), NY(510.0), 390.83 * KXn, 32.5 * SV)
+SCR_W = 400.0 / ((OUT_H / 2.0) / PH)               # ecran et barre de presets : 800 px de large dans l'image 1235 x 1800 (demande)
+STATUS = (CX - SCR_W / 2, NY(454.17), SCR_W, 47.5 * SV)
+PRESET = (CX - SCR_W / 2, NY(510.0), SCR_W, 32.5 * SV)
 JACK_Y = NY(487.0)
 LOGO_C, LOGO_W = (CX, NY(905.4)), 190.0
 LED_LENS = 10.0 * SV                               # v1.5.0 : LED un peu plus grandes (demande)
@@ -199,6 +200,12 @@ n_, lab_, st_, _ = cv2.connectedComponentsWithStats(words, 8)
 for i in range(1, n_):
     x_, y_, w_, h_, a_ = st_[i]
     if h_ < 160 and w_ > 10:
+        if y_ + h_ < (NY(262.0) + 2.0) * AS and x_ > CX * AS:
+            # SUSTAIN : la queue du cornichon passe derriere les lettres (reserve en forme de lettres, pas de boite)
+            reg_ = (ink[y_ - 8:y_ + h_ + 8, x_ - 8:x_ + w_ + 8] > 0.05).astype(np.uint8)
+            reg_ = cv2.dilate(reg_, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(5 * AS) | 1, int(5 * AS) | 1)))
+            keep[y_ - 8:y_ + h_ + 8, x_ - 8:x_ + w_ + 8] = np.maximum(keep[y_ - 8:y_ + h_ + 8, x_ - 8:x_ + w_ + 8], reg_)
+            continue
         m = 6 * AS
         keep[max(0, y_ - m):y_ + h_ + m, max(0, x_ - m):x_ + w_ + m] = 1.0
 _lw = int(LOGO_W * AS)
@@ -231,7 +238,8 @@ for i in np.where(tiny)[0]:
 tiny &= src_size > st1[:, 4] * 1.6
 dropm = np.maximum(dropm, cv2.dilate(tiny[lab1].astype(np.uint8), np.ones((5, 5), np.uint8)).astype(np.float32))
 top_cut = np.clip((UY - (NY(262.0) + 2.0)) / 2.0, 0, 1)                 # le dessin s'arrete sous les etiquettes LOUDNESS / SUSTAIN
-corn_a = np.clip(lay * 0.95, 0, 1) * (1 - cut) * (1 - dropm) * on_top * top_cut
+dropm *= np.clip((UY - (NY(262.0) + 2.0)) / 2.0, 0, 1)          # le bout de la queue (au-dessus de SUSTAIN) est garde
+corn_a = np.clip(lay * 0.95, 0, 1) * (1 - cut) * (1 - dropm) * on_top
 cream = np.array([214.0, 212.0, 160.0])                     # #dfdfa5 un peu patine, avec le grain de la peinture
 gr_ = img - cv2.GaussianBlur(img, (0, 0), 2.0)
 light = 1.0 + 0.05 * np.clip(1 - (UX - PX0) / PW * 0.6 - (UY - PY0) / PH * 0.6, -1, 1)
