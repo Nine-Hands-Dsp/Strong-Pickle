@@ -373,13 +373,12 @@ def deco(c, doc):
     c.restoreState()
 
 doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
-                      title="STRONG PICKLE - Manual / Notice v" + VERSION, author="NINE HANDS | DSP")
+                      title="STRONG PICKLE - Notice v" + VERSION, author="NINE HANDS | DSP")
 def cover_bg(c, doc):
     c.saveState(); c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
     c.setFillColor(ACC); c.rect(0, A4[1] - 3 * mm, A4[0], 3 * mm, stroke=0, fill=1); c.restoreState()
 doc.addPageTemplates([PageTemplate(id="cover", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="fc")], onPage=cover_bg),
                       PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")], onPage=deco)])
-en = section("en"); fr = section("fr")
-en[-1:] = [NextPageTemplate("cover"), PageBreak()]
-doc.build(en + fr[:-1])
+fr = section("fr")              # notices en francais uniquement (couverture noire FRANCAIS)
+doc.build(fr[:-1])
 print(OUT)
