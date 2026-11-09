@@ -249,7 +249,7 @@ T = {
        ["MIDI", "all channels; MIDI Learn on the 7 controls (nothing assigned by default), 14-bit CC, Program Change 1-13"],
        ["Window", "Plugin size 60 % / 75 % / 100 %, default size of new windows to choose (60 % at first), up to 150 %, never smaller than 60 %; anti-freeze v2 under Windows"]]),
 "fr": dict(
- lang="FRANÇAIS", sub="Fuzz jumbo &nbsp;·&nbsp; VST3 pour Windows et macOS", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
+ lang="FRANÇAIS", sub="Fuzz jumbo", ver="Notice d'utilisation &nbsp;·&nbsp; version " + VERSION,
  intro_t="1. Présentation",
  intro=["<b>STRONG PICKLE</b> est un plugin NINE HANDS | DSP inspiré de la <b>Way Huge Swollen Pickle Jumbo Fuzz MkIII</b> (WM41, série « Smalls »), une fuzz de la famille Big Muff connue pour son grave énorme, sa réserve de volume considérable et ses crachotements à mi-course du potard Sustain.",
         "Depuis la version 1.1, le circuit est reproduit <b>composant par composant</b> et résolu à chaque échantillon (méthode de Newton sur les tensions des nœuds, sur-échantillonnage x4) : étage d'entrée à 2N3904, diviseur Sustain, deux étages d'écrêtage à 2N3904 (contre-réaction 470 k, condensateur Miller 330 pF, diodes 1N914 en série avec un condensateur de 1 µF entre collecteur et base, liaisons 150 nF / 100 nF sur 10 k : le grave est réduit avant l'écrêtage, la fuzz reste définie au lieu de baver), tone stack passif Filter, étage de sortie et Loudness. Rien n'est ajouté par-dessus : le gain, le grain carré, la dissymétrie, la façon dont les notes s'éteignent et crachotent viennent des transistors et des condensateurs eux-mêmes. Les valeurs de liaison et de tonalité donnent le grave de la voix « jumbo » de la Pickle.",
@@ -325,12 +325,8 @@ W = A4[0] - 36 * mm
 def section(lang):
     t = T[lang]; f = []
     f.append(NextPageTemplate("p"))
-    f.append(Spacer(1, 2 * mm)); f.append(P(t["lang"], "coverlang")); f.append(Spacer(1, 2 * mm))
-    f.append(img(cover, W * 0.56)); f.append(Spacer(1, 1 * mm))
-    f.append(P("S T R O N G &nbsp; P I C K L E", "cover")); f.append(P(t["sub"], "coversub"))
-    f.append(Spacer(1, 2 * mm)); f.append(P(t["ver"], "coversub")); f.append(Spacer(1, 6 * mm))
-    f.append(img(LOGO_PNG, 52 * mm))
-    f.append(PageBreak())
+    COVER_TEXT.update(lang=t["lang"], sub=t["sub"], ver=t["ver"])      # couverture dessinee a positions fixes (cover_bg)
+    f.append(Spacer(1, 1)); f.append(PageBreak())
     f.append(P(t["intro_t"], "h1")); f += [P(x) for x in t["intro"]]
     f.append(P(t["inst_t"], "h1"))
     for h, x in t["inst"]: f.append(P(h, "h2")); f.append(P(x))
@@ -374,9 +370,30 @@ def deco(c, doc):
 
 doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
                       title="STRONG PICKLE - Notice v" + VERSION, author="NINE HANDS | DSP")
+# ---- Couverture : gabarit fixe commun a toutes les notices (mm depuis le haut de la page A4) ----
+COVER_TEXT = {}
+PEDAL_H, PEDAL_MAXW, PEDAL_TOP = 108 * mm, 150 * mm, 38 * mm      # pedale (boitier + jacks, sans reflet) : 108 mm de haut, centree
+NAME_TOP, SUB_TOP, VER_TOP = 170.0 * mm, 187.7 * mm, 195.4 * mm   # nom espace / mention courte / notice + version
+LOGO_W, LOGO_BOTTOM = 52 * mm, 20 * mm                            # logo blanc en bas de page
 def cover_bg(c, doc):
     c.saveState(); c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
-    c.setFillColor(ACC); c.rect(0, A4[1] - 3 * mm, A4[0], 3 * mm, stroke=0, fill=1); c.restoreState()
+    c.setFillColor(ACC); c.rect(0, A4[1] - 3 * mm, A4[0], 3 * mm, stroke=0, fill=1)
+    def at(par, top, x=18 * mm):
+        w, h = par.wrap(A4[0] - 2 * x, 100 * mm); par.drawOn(c, x, A4[1] - top - h)
+    at(P(COVER_TEXT["lang"], "coverlang"), 20.1 * mm, 18 * mm + 6)
+    ci = Image.open(cover); iw, ih = ci.size
+    cw = iw / 1.32; ch = (ih - int(cw * 0.16)) / 1.2; pad = int(cw * 0.16)     # geometrie de pickle_cover_cutout.png
+    k = min(PEDAL_H / ch, PEDAL_MAXW / cw)
+    dw, dh = iw * k, ih * k
+    y0 = A4[1] - (PEDAL_TOP + (PEDAL_H - ch * k) / 2) + pad * k            # haut de l'image (pedale centree dans sa boite)
+    c.drawImage(cover, (A4[0] - dw) / 2, y0 - dh, dw, dh)
+    c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1] - NAME_TOP + 2 * mm, stroke=0, fill=1)   # coupe le reflet sous le nom
+    at(P("S T R O N G &nbsp; P I C K L E", "cover"), NAME_TOP - 2 * mm)
+    at(P(COVER_TEXT["sub"], "coversub"), SUB_TOP)
+    at(P(COVER_TEXT["ver"], "coversub"), VER_TOP)
+    lw, lh = Image.open(LOGO_PNG).size
+    c.drawImage(LOGO_PNG, (A4[0] - LOGO_W) / 2, LOGO_BOTTOM, LOGO_W, LOGO_W * lh / lw, mask="auto")
+    c.restoreState()
 doc.addPageTemplates([PageTemplate(id="cover", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="fc")], onPage=cover_bg),
                       PageTemplate(id="p", frames=[Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")], onPage=deco)])
 fr = section("fr")              # notices en francais uniquement (couverture noire FRANCAIS)
