@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(StrongPickle VERSION 1.5.1)
+project(StrongPickle VERSION 1.5.2)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,7 +39,7 @@ juce_add_plugin(StrongPickle
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Strong Pickle"
-  VERSION 1.5.1
+  VERSION 1.5.2
   DESCRIPTION "Jumbo fuzz (Swollen Pickle MkIII style) - single pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE

@@ -291,7 +291,7 @@ for side in (-1, 1):
     y0 = int(round(JACK_Y * AS - jh / 2))
     occ = np.zeros((H, W), np.float32); occ[y0:y0 + jh, x0:x0 + jw] = j[..., 3] / 255.0
     occ = np.clip(cv2.GaussianBlur(occ, (0, 0), 3.0 * AS) * 0.9 + cv2.GaussianBlur(occ, (0, 0), 18.0 * AS) * 1.6, 0, 0.62)
-    occ *= 0.2 if side > 0 else 0.7
+    occ *= 0.2 if side > 0 else 0.0           # v1.5.2 : plus d ombre autour du jack de gauche (OUT)
     img *= (1.0 - occ * body)[..., None]
     over(img, j, x0, y0)
     ja = np.zeros((H, W), np.float32); ja[y0:y0 + jh, x0:x0 + jw] = j[..., 3] / 255.0

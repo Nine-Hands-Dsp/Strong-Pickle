@@ -102,3 +102,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.4.2 : plus aucun CC MIDI assigné par défaut (tout passe par le MIDI Learn) ; anciens projets : la table MIDI n'est vidée que si elle n'avait jamais été modifiée
 - v1.5.0 : refonte du visuel au format 1235 x 1800 (pièces photo du kit : potards, inverseurs recalés sans décalage, LED, footswitch, jacks ; cornichon vectoriel ; textes, graduations et logo NINE HANDS | DSP en vectoriel, PICKLE vert vectoriel ; écran et barre de presets de 800 px) ; menus clic droit au design d'Octopus
 - v1.5.1 : menu clic droit ouvert à l'endroit du clic (règle des menus NINE HANDS | DSP) ; notice en français uniquement, nouvelle page de garde
+- v1.5.2 : plus d'ombre autour du jack de gauche (OUT)
