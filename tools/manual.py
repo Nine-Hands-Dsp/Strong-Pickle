@@ -372,8 +372,9 @@ doc = BaseDocTemplate(OUT, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                       title="STRONG PICKLE - Notice v" + VERSION, author="NINE HANDS | DSP")
 # ---- Couverture : gabarit fixe commun a toutes les notices (mm depuis le haut de la page A4) ----
 COVER_TEXT = {}
-PEDAL_H, PEDAL_MAXW, PEDAL_TOP = 108 * mm, 150 * mm, 38 * mm      # pedale (boitier + jacks, sans reflet) : 108 mm de haut, centree
-NAME_TOP, SUB_TOP, VER_TOP = 170.0 * mm, 187.7 * mm, 195.4 * mm   # nom espace / mention courte / notice + version
+PEDAL_H, PEDAL_MAXW = 108 * mm, 150 * mm
+PEDAL_TOP = (A4[1] - PEDAL_H) / 2                                 # pedale (boitier + jacks, sans reflet) : 108 mm de haut, centree sur la page
+NAME_TOP, SUB_TOP = PEDAL_TOP + PEDAL_H + 24 * mm, PEDAL_TOP + PEDAL_H + 41.7 * mm   # nom espace / mention courte (pas de ligne de version)
 LOGO_W, LOGO_BOTTOM = 52 * mm, 20 * mm                            # logo blanc en bas de page
 def cover_bg(c, doc):
     c.saveState(); c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
@@ -390,7 +391,6 @@ def cover_bg(c, doc):
     c.setFillColor(colors.black); c.rect(0, 0, A4[0], A4[1] - NAME_TOP + 2 * mm, stroke=0, fill=1)   # coupe le reflet sous le nom
     at(P("S T R O N G &nbsp; P I C K L E", "cover"), NAME_TOP - 2 * mm)
     at(P(COVER_TEXT["sub"], "coversub"), SUB_TOP)
-    at(P(COVER_TEXT["ver"], "coversub"), VER_TOP)
     lw, lh = Image.open(LOGO_PNG).size
     c.drawImage(LOGO_PNG, (A4[0] - LOGO_W) / 2, LOGO_BOTTOM, LOGO_W, LOGO_W * lh / lw, mask="auto")
     c.restoreState()
