@@ -818,7 +818,7 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
     menu.addSeparator();
     menu.addItem (999, "Strong Pickle v" + String (JucePlugin_VersionString) + "  NINE HANDS | DSP", false);
 
-    menu.showMenuAsync (PopupMenu::Options().withTargetComponent (this),
+    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),    // menu clic droit : toujours la ou l on clique
         [safe = Component::SafePointer<PickleAudioProcessorEditor> (this)] (int r)
         {
             if (safe == nullptr || r == 0) return;
