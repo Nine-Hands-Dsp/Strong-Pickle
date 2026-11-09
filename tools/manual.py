@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.4.3"
+VERSION = "1.5.0"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -29,21 +29,26 @@ for n, f in (("Pop", "Poppins-Regular"), ("PopL", "Poppins-Light"), ("PopM", "Po
 ACC = colors.HexColor("#3E9A2E"); ACC_L = colors.HexColor("#8EDB6C")      # vert de la pedale / PICKLE allume
 DARK = colors.HexColor("#17201A"); GREY = colors.HexColor("#5F6A62"); LIGHT = colors.HexColor("#EEF3E8")
 LAY = json.load(open(os.path.join(ROOT, "tools", "layout.json")))
+import subprocess
+LOGO_PNG = os.path.join(os.path.dirname(os.path.abspath(OUT)), "nine_hands_logo_blanc.png")
+subprocess.run(["rsvg-convert", "-w", "1200", os.path.join(ROOT, "NineHandsLogo.svg"), "-o", LOGO_PNG], check=True)
 
 ASSETS = os.path.join(ROOT, "tools", "manual_assets")
 NAMES = ["pickle_annotated.png", "pickle_switches.png", "pickle_onoff.png", "pickle_bar.png", "pickle_octave_sw.png", "pickle_cover_cutout.png"]
 if SHOTS:
     def shot(name): return Image.open(os.path.join(SHOTS, name)).convert("RGB")
     src = shot("pickle_status.png")
-    k = src.height / 958.0
+    k = src.height / 900.0                          # repere du plugin v1.5 : 617,5 x 900 unites (fond 1235 x 1800 / 2)
 
     # ---------- capture annotee ----------
     kn, tg = LAY["knobs"], LAY["toggles"]
-    marks = [  # numero, x, y (unites 760 x 958)
-        (1, kn[0][0] - 62, kn[0][1] - 58), (2, kn[1][0] + 62, kn[1][1] - 58), (3, kn[2][0] + 58, kn[2][1] - 40),
-        (4, tg[0][0] - 44, tg[0][1] - 20), (5, tg[1][0] + 44, tg[1][1] - 20),
-        (6, 222, 478), (7, 212, 526), (8, 236, 615), (9, LAY["led"][0] + 32, LAY["led"][1]), (10, LAY["foot"][0] + 74, LAY["foot"][1]),
-        (11, 70, 470), (12, 690, 470), (13, LAY["octave"][0] + 20, LAY["octave"][1] - 44), (14, LAY["octLed"][0], LAY["octLed"][1] - 30)]
+    st_, pr_ = LAY["status"], LAY["preset"]
+    marks = [  # numero, x, y (unites du plugin)
+        (1, kn[0][0] - 70, kn[0][1] - 62), (2, kn[1][0] + 70, kn[1][1] - 62), (3, kn[2][0] + 64, kn[2][1] - 44),
+        (4, tg[0][0] - 42, tg[0][1] - 20), (5, tg[1][0] + 42, tg[1][1] - 20),
+        (6, st_[0] - 4, st_[1] + st_[3] * 0.5), (7, pr_[0] - 4, pr_[1] + pr_[3] * 0.5), (8, LAY["pickle"][0] + 34, LAY["pickle"][1] + 46),
+        (9, LAY["led"][0] - 30, LAY["led"][1]), (10, LAY["fs"][0] + 70, LAY["fs"][1]),
+        (11, 40, LAY["jackY"] - 50), (12, 577, LAY["jackY"] - 50), (13, LAY["octave"][0] + 34, LAY["octave"][1] + 34), (14, LAY["octLed"][0], LAY["octLed"][1] - 26)]
     ann = src.copy(); dr = ImageDraw.Draw(ann)
     fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
     for n, x, y in marks:
@@ -61,48 +66,21 @@ if SHOTS:
         s.save(path); return path
 
     # inverseurs : les deux en bas (classique), CRUNCH haut, SCOOP haut
-    box_sw = (180, 300, 580, 410)
+    box_sw = (95, 275, 525, 412)
     sw_img = strip([crop_u(shot(n), box_sw) for n in ("pickle_status.png", "pickle_crunch.png", "pickle_scoop.png")], os.path.join(TMP, "pickle_switches.png"))
-    # effet actif / bypass : PICKLE vert + LED jaune
-    box_on = (250, 560, 625, 740)
+    # effet actif / bypass : PICKLE vert + LED jaunes
+    box_on = (165, 525, 540, 690)
     on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
     # ecran + barre de presets
-    bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (186, 448, 576, 548)).save(bar_img)
+    bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (st_[0] - 8, st_[1] - 8, st_[0] + st_[2] + 8, pr_[1] + pr_[3] + 8)).save(bar_img)
     # inverseur OCTAVE : milieu (off), haut (Fat), bas (Bright)
     ox, oy = LAY["octave"]
-    box_oc = (ox - 62, oy - 50, ox + 102, oy + 50)
+    box_oc = (ox - 72, oy - 54, ox + 108, oy + 54)
     oc_img = strip([crop_u(src, box_oc), crop_u(shot("pickle_octave.png"), box_oc), crop_u(shot("pickle_octave_bright.png"), box_oc)], os.path.join(TMP, "pickle_octave_sw.png"))
 
-    # ---------- couverture : pedale detouree (boitier vert + jacks), reflet au sol, halo vert tres doux ----------
-    a = np.asarray(src).astype(np.float32)
-    hsv = cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2HSV)
-    green = ((hsv[..., 0] > 30) & (hsv[..., 0] < 90) & (hsv[..., 1] > 55) & (hsv[..., 2] > 22)).astype(np.uint8)   # bords ombres du boitier compris
-    ys, xs = np.where(green)
-    x0, x1, y0, y1 = np.percentile(xs, 0.3), np.percentile(xs, 99.7), np.percentile(ys, 0.3), np.percentile(ys, 99.7)
-    msk = np.zeros(green.shape, np.uint8)
-    rr = int(30 * k)
-    cv2.rectangle(msk, (int(x0) + rr, int(y0)), (int(x1) - rr, int(y1)), 255, -1)
-    cv2.rectangle(msk, (int(x0), int(y0) + rr), (int(x1), int(y1) - rr), 255, -1)
-    for cx_, cy_ in ((x0 + rr, y0 + rr), (x1 - rr, y0 + rr), (x0 + rr, y1 - rr), (x1 - rr, y1 - rr)):
-        cv2.circle(msk, (int(cx_), int(cy_)), rr, 255, -1)
-    # jacks sur les tranches : seulement les pixels du metal (le fond gris du visuel autour est retire, pas de rectangle)
-    jy0, jy1 = int(405 * k), int(565 * k)
-    jw = int(40 * k)
-    lum_ = a.mean(-1)
-    for xa_, xb_, bgx in ((int(x0) - jw, int(x0) + 2, int(x0) - jw - int(12 * k)), (int(x1) - 2, int(x1) + jw, int(x1) + jw + int(4 * k))):
-        reg_ = lum_[jy0:jy1, xa_:xb_]
-        bg_ = np.median(lum_[jy0:jy1, bgx:bgx + int(8 * k)], axis=1, keepdims=True)
-        jm = (np.abs(reg_ - bg_) > 14).astype(np.uint8)
-        jm = cv2.morphologyEx(jm, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-        jm = cv2.morphologyEx(jm, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-        n_, lab_, st_, _ = cv2.connectedComponentsWithStats(jm, 8)
-        if n_ > 1:
-            jm = (lab_ == 1 + np.argmax(st_[1:, 4])).astype(np.uint8)
-        pts_ = cv2.findNonZero(jm)
-        if pts_ is not None:                                       # contour net : enveloppe convexe de l'embase
-            jm = np.zeros_like(jm); cv2.fillConvexPoly(jm, cv2.convexHull(pts_), 1)
-        msk[jy0:jy1, xa_:xb_] = np.maximum(msk[jy0:jy1, xa_:xb_], jm * 255)
-    msk = cv2.GaussianBlur(msk, (0, 0), 1.0)
+    # ---------- couverture : pedale detouree avec le canal alpha du fond (boitier + jacks), reflet au sol, halo vert tres doux ----------
+    bg_a = Image.open(os.path.join(ROOT, "background.png")).split()[3].resize(src.size, Image.LANCZOS)
+    msk = np.asarray(bg_a)
     cut = Image.new("RGBA", src.size, (0, 0, 0, 0)); cut.paste(src, (0, 0), Image.fromarray(msk))
     cut = cut.crop(cut.getbbox())
     cw, ch = cut.size
@@ -351,7 +329,7 @@ def section(lang):
     f.append(img(cover, W * 0.56)); f.append(Spacer(1, 1 * mm))
     f.append(P("S T R O N G &nbsp; P I C K L E", "cover")); f.append(P(t["sub"], "coversub"))
     f.append(Spacer(1, 2 * mm)); f.append(P(t["ver"], "coversub")); f.append(Spacer(1, 6 * mm))
-    f.append(img(os.path.join(ROOT, "assets", "logo_studio_wiga_blanc.png"), 52 * mm))
+    f.append(img(LOGO_PNG, 52 * mm))
     f.append(PageBreak())
     f.append(P(t["intro_t"], "h1")); f += [P(x) for x in t["intro"]]
     f.append(P(t["inst_t"], "h1"))

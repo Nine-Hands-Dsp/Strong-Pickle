@@ -73,8 +73,10 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 
 - `PickleDSP.h` : moteur audio (sans JUCE, testé par `tests/test_dsp.cpp`) ; `PickleCircuit.h` : étages à transistor et tone stack au niveau des composants.
 - `PluginProcessor.*`, `PluginEditor.*` : plugin JUCE 8.0.15.
-- `background.jpg`, `toggle_strip.png`, `glow_yellow.png`, `Poppins-Medium.ttf` : visuel intégré.
-- `tools/make_background.py` : prépare le fond à partir du visuel fourni (repères des potards et leviers effacés, LED jaune éteinte, écran et barre de presets vidés), rend les leviers des inverseurs, calcule le calque de la LED et écrit `Layout.h` ; `tools/make_background_v0.py` : premier design (abandonné).
+- `background.png` (1235 x 1800, pédale plein cadre, transparent autour des jacks), `toggle_strip.png`, `glow_yellow*.png`, `pickle_glow.png`, `led_on.png`, `fs_refl.png`, polices Poppins, `NineHandsLogo.svg` : visuel intégré ; textes, graduations et logo dessinés en vectoriel par le plugin.
+- `tools/make_art.py` (v1.5.0) : synthétise le fond 1235 x 1800 avec les pièces photo du kit NINE HANDS | DSP (`assets/kit`, `tools/photo_controls.py`, `tools/toggle_photo.py` : inverseurs recalés, base commune) et le cornichon vectoriel `design/source/cornichon.svg`, écrit `Layout.h`.
+- `NineHandsMenu.h` : menus clic droit au design d'Octopus.
+- (ancien) `tools/make_background.py` : préparait le fond à partir du visuel fourni (repères des potards et leviers effacés, LED jaune éteinte, écran et barre de presets vidés), rend les leviers des inverseurs, calcule le calque de la LED et écrit `Layout.h` ; `tools/make_background_v0.py` : premier design (abandonné).
 - `tools/render/` : compile la vraie fenêtre sous Linux et exporte des captures.
 - `assets/` : kit NINE HANDS | DSP (logo, jacks, inverseurs, footswitch d'Echoflex), polices Barlow Condensed et Poppins (SIL Open Font License).
 
@@ -91,3 +93,4 @@ Pédale d'expression sans saccades : rampe vers chaque nouvelle valeur sur l'int
 - v1.4.0 : motif du cornichon sur la coque (design fourni, trait crème redessiné net) ; inverseur OCTAVE à 3 positions comme l'Ultimate Octave : haut = Fat (15 nF), milieu = off, bas = Bright (1 nF)
 - v1.4.1 : motif du cornichon redessiné depuis le dessin seul (complet, réduit de 12 %, descendu ~3 mm) ; inverseur OCTAVE à la hauteur de la LED (OCTAVE à droite) avec sa LED jaune à gauche (halo sur la façade) ; FUZZ plus gros ; graduations des potards nettes ; peinture et ombres refaites autour des inverseurs ; étiquettes dégagées et plus lisibles
 - v1.4.2 : plus aucun CC MIDI assigné par défaut (tout passe par le MIDI Learn) ; anciens projets : la table MIDI n'est vidée que si elle n'avait jamais été modifiée
+- v1.5.0 : refonte du visuel au format 1235 x 1800 (pièces photo du kit : potards, inverseurs recalés sans décalage, LED, footswitch, jacks ; cornichon vectoriel ; textes, graduations et logo NINE HANDS | DSP en vectoriel, PICKLE vert vectoriel ; écran et barre de presets de 800 px) ; menus clic droit au design d'Octopus
