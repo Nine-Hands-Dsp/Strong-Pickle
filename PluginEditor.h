@@ -2,10 +2,11 @@
 
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "Layout.h"
+#include "NineHandsMenu.h"
 
 //==============================================================================
-// Potards : le chapeau noir (et ses reflets) fait partie du fond et reste fixe ;
-// seul le repere blanc tourne.
+// Potards (photo du kit, dans le fond : reflets fixes) ; seul le repere creme peint tourne.
 //==============================================================================
 class PickleKnobLookAndFeel : public juce::LookAndFeel_V4
 {
@@ -21,18 +22,20 @@ public:
 };
 
 //==============================================================================
-// Inverseur a levier du kit NINE HANDS | DSP (3 images : bas, intermediaire ~55 ms, haut)
+// Inverseur a levier (photos du kit : haut / milieu / bas, recalees sur la rondelle -> aucun decalage).
+// 2 positions : image du milieu ~55 ms pendant la bascule. 3 positions (OCTAVE : haut Fat, milieu off, bas Bright) :
+// passage haut <-> bas par le milieu ~55 ms. Les trois images sont dessinees exactement dans le meme rectangle.
 //==============================================================================
 class LeverSwitch : public juce::Component
 {
 public:
-    // threePos : inverseur a 3 positions (OCTAVE : haut = Fat, milieu = Off, bas = Bright ; choix 0 Off, 1 Fat, 2 Bright)
     explicit LeverSwitch (juce::RangedAudioParameter& p, bool threePos = false);
     void paint (juce::Graphics&) override;
+    bool hitTest (int x, int y) override;
     void mouseDown (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
     void tick (double nowMs);
-    juce::Image strip;
+    juce::Image strip;                       // haut / milieu / bas empiles (carres)
     std::function<void()> onRightClick, onUserChange;
 
 private:
@@ -41,12 +44,12 @@ private:
     void moveTo (int newFrame);
     const bool three;
     juce::ParameterAttachment attachment;
-    int frame = 0, shownFrame = 0, targetFrame = 0;     // images : 0 = bas, 1 = milieu, 2 = haut
+    int frame = 0, shownFrame = 0, targetFrame = 0;     // positions : 0 = bas, 1 = milieu, 2 = haut
     double transitionUntil = 0.0;
 };
 
 //==============================================================================
-// Footswitch (reference Echoflex) : bascule a l'appui, bouton assombri tant qu'on appuie.
+// Footswitch (photo du kit, dans le fond) : fonctionnement d'Echoflex ; reflet jaune de la LED en fondu.
 //==============================================================================
 class FootSwitchArea : public juce::Component
 {
@@ -57,20 +60,17 @@ public:
     void mouseUp (const juce::MouseEvent&) override;
     bool hitTest (int x, int y) override;
     std::function<void()> onRightClick, onUserChange;
-
+    juce::Image reflection;
+    float ledLevel = 0.0f;
 private:
     bool value = false, pressed = false;
     juce::ParameterAttachment attachment;
 };
 
-//==============================================================================
 struct RightClickForwarder : public juce::MouseListener
 {
     std::function<void (juce::Component*)> callback;
-    void mouseDown (const juce::MouseEvent& e) override
-    {
-        if (e.mods.isPopupMenu() && callback) callback (e.eventComponent);
-    }
+    void mouseDown (const juce::MouseEvent& e) override { if (e.mods.isPopupMenu() && callback) callback (e.eventComponent); }
 };
 
 //==============================================================================
@@ -88,19 +88,26 @@ public:
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
 
-    // Repere de reference (100 %) et taille par defaut = taille minimale (identique a Echoflex / Doorn)
-    static constexpr int baseW = 760;
-    static constexpr int baseH = 958;
+    // Repere du fond (pedale plein cadre, image 1235 x 1800 px / 2). Hauteurs de fenetre des pedales simples :
+    // taille par defaut = taille minimale 493 px (« 60 % »), 100 % = 958 px, jusqu'a 150 %.
+    static constexpr float baseW = layout::frameW;
+    static constexpr float baseH = layout::frameH;
     static constexpr int defaultH = 493;
+    static constexpr int refH = 958;
+    static constexpr int maxH = refH * 3 / 2;
 
     void setScaledHeight (int h);
-    static constexpr int numSizes = 3;          // 60 % (defaut d'origine) / 75 % / 100 %
+    void forceRenderScale (float sc) { forcedScale = sc; rebuildCaches (sc); }   // captures (outil de rendu)
+    static constexpr int numSizes = 3;          // 60 % (defaut) / 75 % / 100 %
     static int sizeHeight (int idx);
     void showStatus();
+    void openMainMenu() { showContextMenu(); }  // outil de rendu (capture du menu)
 
 private:
     void timerCallback() override;
     void useSoftwareRenderer();
+    void visibilityChanged() override;
+    void askRepaint (juce::Rectangle<int> r);
     void showContextMenu (int learnIdx = -1);
     void handleMidiMenu (int r);
     void showPresetMenu();
@@ -110,26 +117,27 @@ private:
     juce::Rectangle<int> scaled (juce::Rectangle<float> r) const;
     juce::String buildStatusLine() const;
     juce::String buildPresetLine() const;
-    void drawLed (juce::Graphics&);
-    void drawOctLed (juce::Graphics&);
-    void drawOctGlow (juce::Graphics&);
+    void buildPrint();
+    void drawPrint (juce::Graphics&);
+    void drawGlows (juce::Graphics&);
+    void drawLeds (juce::Graphics&);
     void drawStatus (juce::Graphics&);
     void drawPresetBar (juce::Graphics&);
 
     PickleAudioProcessor& proc;
     PickleKnobLookAndFeel lnf;
+    NineHandsMenu::MenuLnf menuLnf;
     RightClickForwarder rightClickFwd;
 
-    juce::Image background, bgScaled, glowYellow, glowYellowS, glowOct, glowOctS, pickleGlow, pickleGlowS, backgroundLit, bgLitScaled;
+    juce::Image background, bgScaled, glow, glowS, glowOct, glowOctS, pickleGlow, ledOn;
     int cacheW = 0, cacheH = 0;
-    float cacheScale = 0.0f;
+    float cacheScale = 0.0f, forcedScale = 0.0f;
     int resizeSettle = 0;
-    // anti-gel v2 : suivi de la fenetre hote, de l'echelle et des redessins
     void* lastPeer = nullptr;
     double lastPaintMs = 0.0, repaintAskedMs = 0.0, lastScaleCheckMs = 0.0, lastRendererCheckMs = 0.0;
-    void askRepaint (juce::Rectangle<int> r);
-    void visibilityChanged() override;
-    juce::Typeface::Ptr labelFace;
+    juce::Typeface::Ptr labelFace, boldFace, lightFace, regularFace;
+    juce::Path printPath, picklePath;      // serigraphie (unites du plugin) ; PICKLE a part (s'allume en vert)
+    std::unique_ptr<juce::Drawable> logo;
 
     PickleKnob knobs[PickleAudioProcessor::numKnobs];
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAtt[PickleAudioProcessor::numKnobs];

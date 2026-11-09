@@ -7,38 +7,26 @@ using namespace juce;
 
 namespace
 {
-    // Positions dans le repere de reference 760 x 958 (fond 1520 x 1916), generees par tools/make_background.py
-    const Point<float>* const knobPos = layout::knobPos;
-    const float* const knobRs = layout::knobR;
-    const Point<float> crunchPos = layout::crunchPos, scoopPos = layout::scoopPos, octavePos = layout::octavePos;
-    const float togHalf = layout::togHalf;
-    const Point<float> ledPos = layout::ledPos;
-    const float ledR = layout::ledR;
-    const Point<float> octLedPos = layout::octLedPos;      // LED d'octave (jaune), a gauche de l'inverseur OCTAVE
-    const float octLedR = layout::octLedR;
-    const Colour octCore (0xfffff8d8), octMid (0xffffc21a), octDeep (0xff8a5600);   // meme jaune que la LED principale
-    const Rectangle<float> glowRect = layout::glowRect;
-    const Rectangle<float> octGlowRect = layout::octGlowRect;   // lumiere de la LED d'octave sur la facade
-    const Rectangle<float> pickleRect = layout::pickleRect;    // « PICKLE » s'allume en vert avec l'effet
-    const Point<float> footPos = layout::footPos;
-    const float footR = layout::footR;
+    // repere 617,5 x 900 (fond 1235 x 1800 / 2), positions generees par tools/make_art.py dans Layout.h
     const Rectangle<float> statusRect = layout::statusRect;
     const Rectangle<float> presetRect = layout::presetRect;
 
     const float rotStart = MathConstants<float>::pi * (7.0f / 6.0f);    // -150 degres (7 h)
     const float rotEnd   = MathConstants<float>::pi * (17.0f / 6.0f);   // +150 degres (5 h)
 
-    // LED bleue (comme la pedale d'origine)
-    const Colour ledCore (0xfffff8d8), ledMid (0xffffc21a), ledDeep (0xff8a5600);   // LED jaune
-    const Colour inkStatus (0xffd6e8b6);     // texte de l'ecran du visuel
-    const Colour inkPreset (0xffdae0be);     // texte de la barre de presets du visuel
+    const Colour inkCream (0xffe6e4c6);     // serigraphie creme (comme le cornichon #dfdfa5, un peu plus claire)
+    const Colour pickleLit (0xffa8f08e), pickleEdge (0xff58c83e);     // PICKLE allume : vert clair, bord sature
+    const Colour ledYellow (0xffffc21a);
+    const Colour screenInk (0xffd6e8b6);     // texte de l'ecran et de la barre de presets
+    const Colour panel (0xff0a140a);        // ecran et barre : vert tres sombre, semi-transparent (le cornichon se devine)
+    const Colour menuAccent (0xff8ee06a);   // pastille des en-tetes de menu (vert PICKLE)
 
     const char* const valueIds[] = { "loudness", "sustain", "filter", "crunch", "scoop", "active", "gate", "octave" };
     constexpr int numValueIds = 8;
 }
 
 //==============================================================================
-// POTARDS : repere blanc (trait) peint sur le dessus, lumiere fixe en haut a gauche
+// POTARDS : repere creme arrondi (de 0,42 a 0,90 du rayon), lumiere fixe en haut a gauche
 //==============================================================================
 bool PickleKnob::hitTest (int x, int y)
 {
@@ -53,21 +41,19 @@ void PickleKnobLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, 
     const float R = (float) jmin (w, h) * 0.5f;
     const float a = startAngle + pos * (endAngle - startAngle);
     const Point<float> dir (std::sin (a), -std::cos (a));
-    ignoreUnused (dir);
-    // repere du visuel : barrette claire aux bouts arrondis, de 16 % a 81 % du rayon du moletage
-    const float r0 = 0.16f * R, r1 = 0.81f * R, bw = 0.18f * R;
-    Path p; p.addRoundedRectangle (-bw * 0.5f, -r1, bw, r1 - r0, bw * 0.30f);
-    const auto tr = AffineTransform::rotation (a).translated (c);
-    // peinture un peu plus claire tournee vers la lumiere (haut gauche), ombre tres legere en bas a droite
+    const Point<float> p0 = c + dir * (0.42f * R), p1 = c + dir * (0.86f * R);
+    const float lw = jmax (1.4f, 0.062f * R);
+    Path line; line.startNewSubPath (p0); line.lineTo (p1);
+    g.setColour (Colours::black.withAlpha (0.45f));
+    g.strokePath (line, PathStrokeType (lw * 1.15f, PathStrokeType::curved, PathStrokeType::rounded),
+                  AffineTransform::translation (R * 0.010f, R * 0.014f));
     const float lightFacing = 0.5f + 0.5f * std::cos (a + MathConstants<float>::pi * 0.25f);
-    g.setColour (Colours::black.withAlpha (0.40f));
-    g.fillPath (p, tr.translated (R * 0.010f, R * 0.014f));
-    g.setColour (Colour (0xffdedfd9).interpolatedWith (Colours::white, 0.35f * lightFacing));
-    g.fillPath (p, tr);
+    g.setColour (Colour (0xfff2f2ee).withMultipliedBrightness (0.92f + 0.08f * lightFacing));
+    g.strokePath (line, PathStrokeType (lw, PathStrokeType::curved, PathStrokeType::rounded));
 }
 
 //==============================================================================
-// INVERSEUR (2 positions : 0 = bas, 1 = haut)
+// INVERSEUR
 //==============================================================================
 LeverSwitch::LeverSwitch (RangedAudioParameter& p, bool threePos)
     : three (threePos),
@@ -78,7 +64,7 @@ LeverSwitch::LeverSwitch (RangedAudioParameter& p, bool threePos)
                       {
                           const bool jump = std::abs (nf - frame) == 2;
                           frame = targetFrame = nf;
-                          shownFrame = jump ? 1 : nf;                  // bas <-> haut : position intermediaire ~55 ms
+                          shownFrame = jump ? 1 : nf;                  // bas <-> haut : position du milieu ~55 ms
                           transitionUntil = Time::getMillisecondCounterHiRes() + 55.0;
                           repaint();
                       }
@@ -104,19 +90,24 @@ float LeverSwitch::valueOf (int f) const
 
 void LeverSwitch::tick (double now)
 {
-    if (shownFrame != targetFrame && now >= transitionUntil)
-    {
-        shownFrame = targetFrame;
-        repaint();
-    }
+    if (shownFrame != targetFrame && now >= transitionUntil) { shownFrame = targetFrame; repaint(); }
 }
 
 void LeverSwitch::paint (Graphics& g)
 {
     if (! strip.isValid()) return;
     const int fs = strip.getWidth();
+    const int row = 2 - shownFrame;                         // bande : haut / milieu / bas
     g.setImageResamplingQuality (Graphics::highResamplingQuality);
-    g.drawImage (strip, 0, 0, getWidth(), getHeight(), 0, shownFrame * fs, fs, fs);
+    // meme rectangle de destination pour les trois images : la rondelle et l'ecrou ne bougent pas
+    g.drawImage (strip, 0, 0, getWidth(), getHeight(), 0, row * fs, fs, fs);
+}
+
+bool LeverSwitch::hitTest (int x, int y)
+{
+    const auto c = getLocalBounds().toFloat().getCentre();
+    const float r = (float) getWidth() * (layout::togR / layout::togS);
+    return std::abs ((float) x - c.x) <= r * 1.15f && std::abs ((float) y - c.y) <= r * 1.6f;
 }
 
 void LeverSwitch::moveTo (int nf)
@@ -131,8 +122,7 @@ void LeverSwitch::mouseDown (const MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) { if (onRightClick) onRightClick(); return; }
     if (! three) { moveTo (frame == 0 ? 2 : 0); return; }
-    // 3 positions : clic dans la moitie haute = un cran vers le haut, moitie basse = un cran vers le bas
-    moveTo (e.y < getHeight() / 2 ? frame + 1 : frame - 1);
+    moveTo (e.y < getHeight() / 2 ? frame + 1 : frame - 1); // moitie haute = un cran vers le haut
 }
 
 void LeverSwitch::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
@@ -155,16 +145,22 @@ FootSwitchArea::FootSwitchArea (RangedAudioParameter& p)
 bool FootSwitchArea::hitTest (int x, int y)
 {
     const auto c = getLocalBounds().toFloat().getCentre();
-    return c.getDistanceFrom ({ (float) x, (float) y }) <= (float) getWidth() * 0.5f;
+    return c.getDistanceFrom ({ (float) x, (float) y }) <= (float) getWidth() * (layout::footR * 1.35f / layout::fsS);
 }
 
 void FootSwitchArea::paint (Graphics& g)
 {
+    const auto b = getLocalBounds().toFloat();
+    if (ledLevel > 0.003f && reflection.isValid())
+    {
+        g.setOpacity (ledLevel);
+        g.drawImage (reflection, b);
+        g.setOpacity (1.0f);
+    }
     if (pressed)
     {
-        // bouton assombri tant qu'on appuie (disque noir a 25 %, rayon footR x 0,54)
-        const auto c = getLocalBounds().toFloat().getCentre();
-        const float r = (float) getWidth() * 0.5f * 0.54f;
+        const float r = b.getWidth() * (layout::footR / layout::fsS) * 0.98f;
+        const auto c = b.getCentre();
         g.setColour (Colours::black.withAlpha (0.25f));
         g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
     }
@@ -175,7 +171,7 @@ void FootSwitchArea::mouseDown (const MouseEvent& e)
     if (e.mods.isPopupMenu()) { if (onRightClick) onRightClick(); return; }
     pressed = true;
     repaint();
-    attachment.setValueAsCompleteGesture (value ? 0.0f : 1.0f);    // bascule des l'appui
+    attachment.setValueAsCompleteGesture (value ? 0.0f : 1.0f);
     if (onUserChange) onUserChange();
 }
 
@@ -196,22 +192,23 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
       octaveSwitch (*p.apvts.getParameter ("octave"), true),
       footswitch   (*p.apvts.getParameter ("active"))
 {
-    background = ImageCache::getFromMemory (BinaryData::background_jpg, BinaryData::background_jpgSize);
-    glowYellow = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
+    background = ImageCache::getFromMemory (BinaryData::background_png, BinaryData::background_pngSize);
+    glow       = ImageCache::getFromMemory (BinaryData::glow_yellow_png, BinaryData::glow_yellow_pngSize);
     glowOct    = ImageCache::getFromMemory (BinaryData::glow_yellow_oct_png, BinaryData::glow_yellow_oct_pngSize);
     pickleGlow = ImageCache::getFromMemory (BinaryData::pickle_glow_png, BinaryData::pickle_glow_pngSize);
-    // v1.2.3 : fond « PICKLE allume » = le fond lui-meme avec les lettres vertes posees au pixel pres (fond a 2 px par unite).
-    // Les deux fonds sont mis a l'echelle de la meme facon et dessines au meme endroit : aucun decalage possible,
-    // a toutes les tailles de fenetre et a toutes les echelles d'affichage.
-    if (background.isValid() && pickleGlow.isValid())
-    {
-        backgroundLit = background.createCopy();
-        Graphics gl (backgroundLit);
-        gl.drawImageAt (pickleGlow, roundToInt (pickleRect.getX() * 2.0f), roundToInt (pickleRect.getY() * 2.0f));
-    }
+    ledOn      = ImageCache::getFromMemory (BinaryData::led_on_png, BinaryData::led_on_pngSize);
+    footswitch.reflection = ImageCache::getFromMemory (BinaryData::fs_refl_png, BinaryData::fs_refl_pngSize);
     const auto strip = ImageCache::getFromMemory (BinaryData::toggle_strip_png, BinaryData::toggle_strip_pngSize);
-    labelFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
+    labelFace   = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
+    boldFace    = Typeface::createSystemTypefaceFor (BinaryData::PoppinsBold_ttf, BinaryData::PoppinsBold_ttfSize);
+    lightFace   = Typeface::createSystemTypefaceFor (BinaryData::PoppinsLight_ttf, BinaryData::PoppinsLight_ttfSize);
+    regularFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsRegular_ttf, BinaryData::PoppinsRegular_ttfSize);
+    menuLnf.f = { regularFace, labelFace, boldFace };
+    if (auto xml = XmlDocument::parse (String::fromUTF8 (BinaryData::NineHandsLogo_svg, BinaryData::NineHandsLogo_svgSize)))
+        logo = Drawable::createFromSVG (*xml);
+    buildPrint();
 
+    // index des commandes = learnDef du processeur (0-2 potards, 3 crunch, 4 scoop, 5 footswitch, 6 octave)
     rightClickFwd.callback = [this] (Component* c)
     {
         int idx = -1;
@@ -246,24 +243,24 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
         addAndMakeVisible (*l);
     }
     footswitch.onRightClick = [this] { showContextMenu (5); };
+    footswitch.onUserChange = [this] { proc.currentPreset = -1; };
     addAndMakeVisible (footswitch);
 
-    for (int i = 0; i < numValueIds; ++i)
-        lastValues[i] = proc.raw (valueIds[i]);
+    for (int i = 0; i < numValueIds; ++i) lastValues[i] = proc.raw (valueIds[i]);
     lastPresetCounter = proc.presetCounter.load();
     lastMidiCount = proc.midiCounter.load();
     ledLevel = proc.rawAt (PickleAudioProcessor::rActive) > 0.5f ? 1.0f : 0.0f;
     octLedLevel = (ledLevel > 0.5f && roundToInt (proc.rawAt (PickleAudioProcessor::rOctave)) != 0) ? 1.0f : 0.0f;
+    footswitch.ledLevel = ledLevel;
 
     // Taille par defaut = taille minimale (impossible de reduire en dessous), proportions bloquees
-    const int defaultW = roundToInt ((float) defaultH * (float) baseW / (float) baseH);
+    const int defaultW = roundToInt ((float) defaultH * baseW / baseH);
     setResizable (true, true);
-    setResizeLimits (defaultW, defaultH, baseW * 3 / 2, baseH * 3 / 2);
+    setResizeLimits (defaultW, defaultH, roundToInt ((float) maxH * baseW / baseH), maxH);
     if (auto* cons = getConstrainer())
         cons->setFixedAspectRatio ((double) baseW / (double) baseH);
-    setOpaque (true);                      // anti-gel : l'hote ne redessine jamais ce qui est derriere la fenetre
+    setOpaque (true);
     setSize (defaultW, defaultH);
-    // taille des nouvelles fenetres : celle choisie dans le menu « Default size (new windows) »
     setScaledHeight (sizeHeight (WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes)));
     rebuildCaches();
     startTimerHz (30);
@@ -271,45 +268,40 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
 
 PickleAudioProcessorEditor::~PickleAudioProcessorEditor()
 {
+    PopupMenu::dismissAllActiveMenus();
     stopTimer();
-    for (auto& s : knobs)
-    {
-        s.removeMouseListener (&rightClickFwd);
-        s.setLookAndFeel (nullptr);
-    }
+    for (auto& s : knobs) { s.removeMouseListener (&rightClickFwd); s.setLookAndFeel (nullptr); }
 }
 
 //==============================================================================
 int PickleAudioProcessorEditor::sizeHeight (int idx)
 {
-    const int h[numSizes] = { (int) defaultH, roundToInt (baseH * 0.75f), (int) baseH };
+    const int h[numSizes] = { (int) defaultH, roundToInt (refH * 0.75f), (int) refH };
     return h[jlimit (0, numSizes - 1, idx)];
 }
 
 void PickleAudioProcessorEditor::setScaledHeight (int h)
 {
-    h = jmax ((int) defaultH, h);
-    setSize (roundToInt ((float) h * (float) baseW / (float) baseH), h);
+    h = jlimit ((int) defaultH, (int) maxH, h);
+    setSize (roundToInt ((float) h * baseW / baseH), h);
 }
 
 Rectangle<int> PickleAudioProcessorEditor::scaled (Rectangle<float> r) const
 {
-    const float s = (float) getHeight() / (float) baseH;
+    const float s = (float) getHeight() / baseH;
     return r.transformedBy (AffineTransform::scale (s)).getSmallestIntegerContainer();
 }
 
 float PickleAudioProcessorEditor::physicalScale() const
 {
+    if (forcedScale > 0.0f) return forcedScale;
     return jlimit (1.0f, 4.0f, (float) Component::getApproximateScaleFactorForComponent (this));
 }
 
-void PickleAudioProcessorEditor::showStatus()
-{
-    statusUntil = Time::getMillisecondCounterHiRes() + 2500.0;
-}
+void PickleAudioProcessorEditor::showStatus() { statusUntil = Time::getMillisecondCounterHiRes() + 2500.0; }
 
 //==============================================================================
-// Caches d'affichage : fond et calque lumineux deja a la taille de la fenetre (reconstruits par le timer)
+// Caches d'affichage (reconstruits par le timer seulement)
 //==============================================================================
 void PickleAudioProcessorEditor::rebuildCaches (float sc)
 {
@@ -317,18 +309,13 @@ void PickleAudioProcessorEditor::rebuildCaches (float sc)
     const int w = getWidth(), h = getHeight();
     if (w <= 0 || h <= 0) return;
     if (w == cacheW && h == cacheH && std::abs (sc - cacheScale) < 0.01f && bgScaled.isValid()) return;
-
     cacheW = w; cacheH = h; cacheScale = sc;
     const int pw = roundToInt ((float) w * sc), ph = roundToInt ((float) h * sc);
     bgScaled = (pw >= background.getWidth()) ? background : background.rescaled (pw, ph, Graphics::highResamplingQuality);
-
-    const float s = (float) h / (float) baseH;
-    const int gpx = roundToInt (glowRect.getWidth() * s * sc);
-    glowYellowS = (gpx >= glowYellow.getWidth()) ? glowYellow : glowYellow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
-    glowOctS = ! glowOct.isValid() ? Image() : ((gpx >= glowOct.getWidth()) ? glowOct : glowOct.rescaled (gpx, gpx, Graphics::highResamplingQuality));
-    const int pkw = roundToInt (pickleRect.getWidth() * s * sc), pkh = roundToInt (pickleRect.getHeight() * s * sc);
-    bgLitScaled = ! backgroundLit.isValid() ? Image() : ((pw >= backgroundLit.getWidth()) ? backgroundLit : backgroundLit.rescaled (pw, ph, Graphics::highResamplingQuality));
-    ignoreUnused (pkw, pkh);
+    const float s = (float) h / baseH;
+    const int gpx = roundToInt (layout::glowRect.getWidth() * s * sc);
+    glowS    = (gpx >= glow.getWidth())    ? glow    : glow.rescaled (gpx, gpx, Graphics::highResamplingQuality);
+    glowOctS = (gpx >= glowOct.getWidth()) ? glowOct : glowOct.rescaled (gpx, gpx, Graphics::highResamplingQuality);
     repaint();
 }
 
@@ -336,25 +323,29 @@ void PickleAudioProcessorEditor::resized()
 {
     // anti-gel : jamais de setSize ici ; les limites du constrainer suffisent
     for (int i = 0; i < PickleAudioProcessor::numKnobs; ++i)
-        knobs[i].setBounds (scaled ({ knobPos[i].x - knobRs[i], knobPos[i].y - knobRs[i], knobRs[i] * 2.0f, knobRs[i] * 2.0f }));
+    {
+        const auto c = layout::knobPos[i]; const float r = layout::knobR[i];
+        knobs[i].setBounds (scaled ({ c.x - r, c.y - r, r * 2.0f, r * 2.0f }));
+    }
+    // inverseurs : le sprite (rondelle + levier + ombre) est carre et centre sur la rondelle
     auto lever = [this] (LeverSwitch& l, Point<float> c)
     {
-        l.setBounds (scaled ({ c.x - togHalf, c.y - togHalf, togHalf * 2.0f, togHalf * 2.0f }));
+        const float hs = layout::togS * 0.5f;
+        const float s = (float) getHeight() / baseH;
+        // bornes en pixels entiers, carrees, centrees au demi-pixel pres : les trois images y sont dessinees a l'identique
+        const int side = roundToInt (layout::togS * s);
+        l.setBounds (roundToInt ((c.x - hs) * s), roundToInt ((c.y - hs) * s), side, side);
     };
-    lever (crunchSwitch, crunchPos);
-    lever (scoopSwitch, scoopPos);
-    lever (octaveSwitch, octavePos);
-    footswitch.setBounds (scaled ({ footPos.x - footR, footPos.y - footR, footR * 2.0f, footR * 2.0f }));
+    lever (crunchSwitch, layout::crunchPos);
+    lever (scoopSwitch, layout::scoopPos);
+    lever (octaveSwitch, layout::octavePos);
+    const float fr = layout::fsS * 0.5f;
+    footswitch.setBounds (scaled ({ layout::fsPos.x - fr, layout::fsPos.y - fr, fr * 2.0f, fr * 2.0f }));
     resizeSettle = 4;
 }
 
 //==============================================================================
-// Anti-gel v2 (NINE HANDS | DSP) :
-//  1. moteur de rendu logiciel force sur Windows, applique a chaque nouvelle fenetre hote (peer)
-//     et reverifie toutes les secondes, jamais en boucle ;
-//  2. aucun calcul lourd dans paint() : caches reconstruits par le timer seulement ;
-//  3. chien de garde : redessin demande non servi en 1,5 s -> moteur de rendu reapplique, tout redessine ;
-//  4. cote audio : aucun appel a l'hote ni allocation depuis le thread audio (voir PluginProcessor).
+// Anti-gel v2 (NINE HANDS | DSP)
 //==============================================================================
 void PickleAudioProcessorEditor::useSoftwareRenderer()
 {
@@ -365,8 +356,7 @@ void PickleAudioProcessorEditor::useSoftwareRenderer()
     {
         int sw = peer->getAvailableRenderingEngines().indexOf ("Software Renderer");
         if (sw < 0) sw = 0;
-        if (peer->getCurrentRenderingEngine() != sw)
-            peer->setCurrentRenderingEngine (sw);
+        if (peer->getCurrentRenderingEngine() != sw) peer->setCurrentRenderingEngine (sw);
     }
    #endif
 }
@@ -427,10 +417,8 @@ void PickleAudioProcessorEditor::timerCallback()
 
     if (repaintAskedMs > 0.0 && isShowing() && now - repaintAskedMs > 1500.0 && lastPaintMs < repaintAskedMs)
     {
-        repaintAskedMs = 0.0;
-        lastPeer = nullptr;
-        useSoftwareRenderer();
-        repaint();
+        repaintAskedMs = 0.0; lastPeer = nullptr;
+        useSoftwareRenderer(); repaint();
     }
 
     crunchSwitch.tick (now);
@@ -463,7 +451,6 @@ void PickleAudioProcessorEditor::timerCallback()
         learnLineUntil = now + 200.0;
         statusUntil = jmax (statusUntil, now + 200.0);
     }
-
     const int mc = proc.midiCounter.load();
     if (mc != lastMidiCount) { lastMidiCount = mc; midiFlash = 8; }
     if (midiFlash > 0) --midiFlash;
@@ -473,7 +460,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (statusAlpha < 0.005f) statusAlpha = 0.0f;
     if (statusAlpha > 0.995f) statusAlpha = 1.0f;
 
-    // LED bleue = effet actif ; fondu 0,45 a l'allumage / 0,28 a l'extinction
+    // LED jaune + PICKLE vert = effet actif ; LED d'octave = octave en service (Fat ou Bright) et effet actif
     const bool on = proc.rawAt (PickleAudioProcessor::rActive) > 0.5f;
     ledLevel += ((on ? 1.0f : 0.0f) - ledLevel) * (on ? 0.45f : 0.28f);
     if (ledLevel < 0.003f) ledLevel = 0.0f;
@@ -481,10 +468,11 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (ledLevel - drawnLed) > 0.004f)
     {
         drawnLed = ledLevel;
-        askRepaint (scaled (glowRect));
-        askRepaint (scaled (pickleRect));
+        footswitch.ledLevel = ledLevel;
+        askRepaint (scaled (layout::glowRect));
+        askRepaint (scaled (layout::pickleGlowRect));
+        footswitch.repaint();
     }
-    // LED d'octave : allumee quand l'octave est en service (Fat ou Bright) et l'effet actif ; meme fondu
     const bool octOn = on && roundToInt (proc.rawAt (PickleAudioProcessor::rOctave)) != 0;
     octLedLevel += ((octOn ? 1.0f : 0.0f) - octLedLevel) * (octOn ? 0.45f : 0.28f);
     if (octLedLevel < 0.003f) octLedLevel = 0.0f;
@@ -492,7 +480,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (octLedLevel - drawnOctLed) > 0.004f)
     {
         drawnOctLed = octLedLevel;
-        askRepaint (scaled (octGlowRect));
+        askRepaint (scaled (layout::octGlowRect));
     }
 
     const auto l1 = (learnLineUntil > 0.0 && now < learnLineUntil + 800.0 ? learnLine : buildStatusLine()), pl = buildPresetLine();
@@ -511,102 +499,142 @@ void PickleAudioProcessorEditor::timerCallback()
 }
 
 //==============================================================================
-void PickleAudioProcessorEditor::drawLed (Graphics& g)
+// Serigraphie vectorielle : construite une fois en chemins (unites du plugin), remplie a l'echelle de la fenetre
+//==============================================================================
+static Path textPath (const layout::Txt& t, const Typeface::Ptr& face)
 {
-    const float level = ledLevel;
-    if (level <= 0.003f) return;
-
-    // la facade recoit la lumiere de la LED (calque precalcule : fond x eclairement x couleur, alpha)
-    if (glowYellowS.isValid())
+    const Font font (FontOptions (face).withPointHeight (t.em));
+    const String s (t.s);
+    float total = 0.0f;
+    for (int i = 0; i < s.length(); ++i)
+        total += GlyphArrangement::getStringWidth (font, String::charToString (s[i])) + (i > 0 ? t.track : 0.0f);
+    const float base = (font.getAscent() - font.getDescent()) * 0.5f;
+    GlyphArrangement ga;
+    float x = -total * 0.5f;
+    for (int i = 0; i < s.length(); ++i)
     {
-        g.setOpacity (level);
-        g.drawImage (glowYellowS, glowRect);
+        const String ch = String::charToString (s[i]);
+        ga.addLineOfText (font, ch, x, base);
+        x += GlyphArrangement::getStringWidth (font, ch) + t.track;
     }
-    g.setOpacity (1.0f);
-
-    const auto c = ledPos; const float r = ledR;
-    ColourGradient halo (ledMid.withAlpha (0.22f * level), c.x, c.y, ledMid.withAlpha (0.0f), c.x + r * 2.6f, c.y, true);
-    g.setGradientFill (halo);
-    g.fillEllipse (c.x - r * 2.6f, c.y - r * 2.6f, r * 5.2f, r * 5.2f);
-
-    ColourGradient body (ledCore.withAlpha (level), c.x - r * 0.10f, c.y - r * 0.12f,
-                         ledDeep.withAlpha (level), c.x + r * 1.05f, c.y + r * 0.2f, true);
-    body.addColour (0.30, ledCore.interpolatedWith (ledMid, 0.55f).withAlpha (level));
-    body.addColour (0.62, ledMid.withAlpha (level));
-    g.setGradientFill (body);
-    g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-
-    g.setColour (ledDeep.darker (0.6f).withAlpha (0.55f * level));
-    g.drawEllipse (c.x - r + 0.6f, c.y - r + 0.6f, r * 2.0f - 1.2f, r * 2.0f - 1.2f, r * 0.12f);
-
-    ColourGradient sp (Colours::white.withAlpha (0.75f * level), c.x - r * 0.30f, c.y - r * 0.42f,
-                       Colours::white.withAlpha (0.0f), c.x - r * 0.30f + r * 0.32f, c.y - r * 0.42f, true);
-    g.setGradientFill (sp);
-    g.fillEllipse (c.x - r * 0.62f, c.y - r * 0.70f, r * 0.64f, r * 0.52f);
+    Path p; ga.createPath (p);
+    p.applyTransform (AffineTransform::rotation (-t.rot * MathConstants<float>::pi / 180.0f).translated (t.x, t.y));
+    return p;
 }
 
-void PickleAudioProcessorEditor::drawOctGlow (Graphics& g)
+void PickleAudioProcessorEditor::buildPrint()
 {
-    // la facade recoit la lumiere de la LED d'octave (meme calque precalcule que la LED principale)
-    if (octLedLevel <= 0.003f || ! glowOctS.isValid()) return;
-    g.setOpacity (octLedLevel);
-    g.drawImage (glowOctS, octGlowRect);
-    g.setOpacity (1.0f);
+    printPath.clear();
+    auto faceOf = [this] (int f) { return f == 1 ? boldFace : (f == 2 ? lightFace : labelFace); };
+    for (const auto& t : layout::texts) printPath.addPath (textPath (t, faceOf (t.font)));
+    for (const auto& k : layout::ticks)
+    {
+        Path seg; seg.startNewSubPath (k.x0, k.y0); seg.lineTo (k.x1, k.y1);
+        Path stroked;
+        PathStrokeType (k.w, PathStrokeType::curved, PathStrokeType::rounded).createStrokedPath (stroked, seg);
+        printPath.addPath (stroked);
+    }
+    picklePath = textPath (layout::pickleText, faceOf (layout::pickleText.font));
 }
 
-void PickleAudioProcessorEditor::drawOctLed (Graphics& g)
+void PickleAudioProcessorEditor::drawPrint (Graphics& g)
 {
-    const float level = octLedLevel;
-    if (level <= 0.003f) return;
-    const auto c = octLedPos; const float r = octLedR;
-    ColourGradient halo (octMid.withAlpha (0.22f * level), c.x, c.y, octMid.withAlpha (0.0f), c.x + r * 4.0f, c.y, true);
-    halo.addColour (0.35, octMid.withAlpha (0.10f * level));
-    g.setGradientFill (halo);
-    g.fillEllipse (c.x - r * 4.0f, c.y - r * 4.0f, r * 8.0f, r * 8.0f);
-    ColourGradient body (octCore.withAlpha (level), c.x - r * 0.10f, c.y - r * 0.12f,
-                         octDeep.withAlpha (level), c.x + r * 1.05f, c.y + r * 0.2f, true);
-    body.addColour (0.30, octCore.interpolatedWith (octMid, 0.55f).withAlpha (level));
-    body.addColour (0.62, octMid.withAlpha (level));
-    g.setGradientFill (body);
-    g.fillEllipse (c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-    ColourGradient sp (Colours::white.withAlpha (0.75f * level), c.x - r * 0.30f, c.y - r * 0.42f,
-                       Colours::white.withAlpha (0.0f), c.x - r * 0.30f + r * 0.32f, c.y - r * 0.42f, true);
-    g.setGradientFill (sp);
-    g.fillEllipse (c.x - r * 0.62f, c.y - r * 0.70f, r * 0.64f, r * 0.52f);
+    const float lv = ledLevel;
+    g.setColour (inkCream);
+    g.fillPath (printPath);
+    g.setColour (inkCream.interpolatedWith (pickleLit, lv));
+    g.fillPath (picklePath);
+    if (lv > 0.003f)
+    {
+        const auto b = picklePath.getBounds();
+        ColourGradient core (Colour (0xffe4ffd6).withAlpha (0.55f * lv), b.getCentreX(), b.getY() + b.getHeight() * 0.35f,
+                             pickleEdge.withAlpha (0.0f), b.getCentreX(), b.getBottom(), false);
+        g.setGradientFill (core);
+        g.fillPath (picklePath);
+        g.setColour (pickleEdge.withAlpha (0.55f * lv));
+        g.strokePath (picklePath, PathStrokeType (0.9f));
+    }
+    if (logo != nullptr)
+    {
+        const auto vb = logo->getDrawableBounds();
+        const float w = layout::logoW, h = w * vb.getHeight() / jmax (1.0f, vb.getWidth());
+        logo->drawWithin (g, { layout::logoPos.x - w * 0.5f, layout::logoPos.y - h * 0.5f, w, h }, RectanglePlacement::centred, 0.92f);
+    }
+}
+
+void PickleAudioProcessorEditor::drawGlows (Graphics& g)
+{
+    // lumieres sur la facade (calques alpha precalcules), SOUS la serigraphie et les lentilles : jamais de texte masque
+    auto layer = [&] (float level, const Image& img, Rectangle<float> r)
+    {
+        if (level <= 0.003f || ! img.isValid()) return;
+        g.setOpacity (level); g.drawImage (img, r); g.setOpacity (1.0f);
+    };
+    layer (ledLevel, glowS.isValid() ? glowS : glow, layout::glowRect);
+    layer (octLedLevel, glowOctS.isValid() ? glowOctS : glowOct, layout::octGlowRect);
+    layer (ledLevel, pickleGlow, layout::pickleGlowRect);              // halo vert de PICKLE
+}
+
+void PickleAudioProcessorEditor::drawLeds (Graphics& g)
+{
+    auto one = [&] (Point<float> c, float level)
+    {
+        if (level <= 0.003f) return;
+        const float hs = layout::ledS * 0.5f;
+        if (ledOn.isValid()) { g.setOpacity (level); g.drawImage (ledOn, { c.x - hs, c.y - hs, hs * 2.0f, hs * 2.0f }); }
+        g.setOpacity (1.0f);
+        const float hr = 16.0f;
+        ColourGradient halo (ledYellow.withAlpha (0.28f * level), c.x, c.y, ledYellow.withAlpha (0.0f), c.x + hr, c.y, true);
+        halo.addColour (0.4, ledYellow.withAlpha (0.07f * level));
+        g.setGradientFill (halo);
+        g.fillEllipse (c.x - hr, c.y - hr, hr * 2.0f, hr * 2.0f);
+    };
+    one (layout::ledPos, ledLevel);
+    one (layout::octLedPos, octLedLevel);
 }
 
 void PickleAudioProcessorEditor::drawStatus (Graphics& g)
 {
+    // ecran : toujours visible (cadre semi-transparent : le cornichon se devine dessous), texte en fondu
+    const auto r = statusRect;
+    g.setColour (panel.withAlpha (0.80f));
+    g.fillRoundedRectangle (r, 7.0f);
+    g.setColour (Colour (0xff2f4a2a).withAlpha (0.9f));
+    for (int i = 1; i < 12; ++i)                                     // cases discretes de l'ecran
+    {
+        const float x = r.getX() + r.getWidth() * (float) i / 12.0f;
+        g.fillRect (x - 0.4f, r.getY() + 4.0f, 0.8f, r.getHeight() - 8.0f);
+    }
+    g.setColour (Colour (0xff8fb07e).withAlpha (0.45f));
+    g.drawRoundedRectangle (r.reduced (0.6f), 7.0f, 1.2f);
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    // l'ecran (cadre et cases) fait partie du fond : seul le texte est dessine
-    const bool longLine = lastLine1.length() > 18;
-    g.setFont (Font (FontOptions (labelFace).withHeight (longLine ? 22.0f : 34.0f)));
-    g.setColour (inkStatus.withAlpha (a));
-    g.drawFittedText (lastLine1, statusRect.reduced (10.0f, 0.0f).toNearestInt(), Justification::centred, longLine ? 2 : 1, 0.75f);
+    const bool longLine = lastLine1.length() > 20;
+    g.setFont (Font (FontOptions (labelFace).withHeight (longLine ? layout::statusFont * 0.66f : layout::statusFont)));
+    g.setColour (screenInk.withAlpha (a));
+    g.drawFittedText (lastLine1, r.reduced (12.0f, 0.0f).toNearestInt(), Justification::centred, longLine ? 2 : 1, 0.75f);
 }
 
 void PickleAudioProcessorEditor::drawPresetBar (Graphics& g)
 {
     const auto r = presetRect;
-    // la barre et ses fleches font partie du fond : seuls le texte et le survol des fleches sont dessines
+    g.setColour (panel.withAlpha (0.78f));
+    g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
+    g.setColour (Colour (0xff8fb07e).withAlpha (hoverZone != 0 ? 0.65f : 0.40f));
+    g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.2f);
     const float aw = 34.0f;
     auto arrow = [&] (Rectangle<float> ar, bool left, bool hot)
     {
-        Path p;
-        const auto c = ar.getCentre();
-        const float s = 6.5f;
+        Path p; const auto c = ar.getCentre(); const float s = 5.5f;
         if (left) p.addTriangle (c.x + s * 0.6f, c.y - s, c.x + s * 0.6f, c.y + s, c.x - s * 0.8f, c.y);
         else      p.addTriangle (c.x - s * 0.6f, c.y - s, c.x - s * 0.6f, c.y + s, c.x + s * 0.8f, c.y);
-        if (! hot) return;
-        g.setColour (inkPreset.withAlpha (0.85f));
+        g.setColour (screenInk.withAlpha (hot ? 1.0f : 0.6f));
         g.fillPath (p);
     };
     arrow (r.withWidth (aw), true, hoverZone == 1);
     arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hoverZone == 3);
-
-    g.setFont (Font (FontOptions (labelFace).withHeight (23.0f)));
-    g.setColour ((midiFlash > 0 ? Colour (0xffffd75a) : inkPreset).withAlpha (hoverZone == 2 ? 1.0f : 0.88f));
+    g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont)));
+    g.setColour ((midiFlash > 0 ? Colour (0xffc8ff9c) : screenInk).withAlpha (hoverZone == 2 ? 1.0f : 0.92f));
     g.drawFittedText (lastPreset, r.reduced (aw, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
 }
 
@@ -614,32 +642,19 @@ void PickleAudioProcessorEditor::paint (Graphics& g)
 {
     lastPaintMs = Time::getMillisecondCounterHiRes();
     repaintAskedMs = 0.0;
-    g.fillAll (Colours::black);
-    // anti-gel : aucun rescale ici, on dessine le cache existant (ou l'original en attendant le timer)
+    g.fillAll (Colour (0xff111112));          // autour des jacks : le fond de l'image est transparent
     const Image& bg = bgScaled.isValid() ? bgScaled : background;
     g.setImageResamplingQuality (&bg == &background ? Graphics::highResamplingQuality : Graphics::lowResamplingQuality);
-    if (bg.isValid())
-        g.drawImage (bg, getLocalBounds().toFloat());
-    // « PICKLE » allume : meme image de fond (version allumee), meme mise a l'echelle, limitee a la zone du mot
-    if (ledLevel > 0.003f)
-    {
-        const Image& bl = bgLitScaled.isValid() ? bgLitScaled : backgroundLit;
-        if (bl.isValid())
-        {
-            Graphics::ScopedSaveState ss (g);
-            g.reduceClipRegion (scaled (pickleRect));
-            g.setOpacity (ledLevel);
-            g.drawImage (bl, getLocalBounds().toFloat());
-        }
-    }
+    if (bg.isValid()) g.drawImage (bg, getLocalBounds().toFloat());
 
-    const float s = (float) getHeight() / (float) baseH;
+    const float s = (float) getHeight() / baseH;
     g.addTransform (AffineTransform::scale (s));
-    drawOctGlow (g);
-    drawLed (g);
-    drawOctLed (g);
+    g.setImageResamplingQuality (Graphics::mediumResamplingQuality);
     drawStatus (g);
     drawPresetBar (g);
+    drawGlows (g);
+    drawPrint (g);
+    drawLeds (g);
 }
 
 //==============================================================================
@@ -655,7 +670,7 @@ static int presetZoneAt (Point<float> p)
 
 void PickleAudioProcessorEditor::mouseMove (const MouseEvent& e)
 {
-    const float s = (float) getHeight() / (float) baseH;
+    const float s = (float) getHeight() / baseH;
     hoverZone = presetZoneAt (e.position / s);
     setMouseCursor (hoverZone != 0 ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
 }
@@ -665,7 +680,7 @@ void PickleAudioProcessorEditor::mouseExit (const MouseEvent&) { hoverZone = 0; 
 void PickleAudioProcessorEditor::mouseDown (const MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) { showContextMenu(); return; }
-    const float s = (float) getHeight() / (float) baseH;
+    const float s = (float) getHeight() / baseH;
     switch (presetZoneAt (e.position / s))
     {
         case 1: stepPreset (-1); break;
@@ -686,6 +701,8 @@ void PickleAudioProcessorEditor::stepPreset (int delta)
 void PickleAudioProcessorEditor::showPresetMenu()
 {
     PopupMenu m;
+    m.setLookAndFeel (&menuLnf);
+    NineHandsMenu::addHeader (m, menuLnf.f, NineHandsMenu::icoPreset, menuAccent, "Presets", buildPresetLine());
     m.addSectionHeader ("Factory presets");
     for (int i = 0; i < PickleAudioProcessor::getNumFactoryPresets(); ++i)
         m.addItem (100 + i, String (i + 1) + ". " + PickleAudioProcessor::getFactoryPreset (i).name, true, proc.currentPreset.load() == i);
@@ -722,25 +739,31 @@ void PickleAudioProcessorEditor::handleMidiMenu (int r)
 
 void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
 {
+    using namespace NineHandsMenu;
     PopupMenu menu;
+    menu.setLookAndFeel (&menuLnf);
     auto ccText = [this] (int i)
     {
         const int cc = proc.ccMap[i].load();
-        return cc >= 0 ? "CC " + String (cc) : String (CharPointer_UTF8 ("\xe2\x80\x94"));
+        return cc >= 0 ? "CC " + String (cc) : String ("not assigned");
     };
     const int lt = proc.learnTarget.load();
     if (learnIdx >= 0)
     {
+        // menu d'une commande : en-tete (pastille + nom + assignation MIDI), puis MIDI Learn
         const String name = PickleAudioProcessor::learnDef (learnIdx).name;
-        menu.addItem (1000 + learnIdx, "MIDI Learn: " + name + " (" + ccText (learnIdx) + ")", true, lt == learnIdx);
+        const int ico = learnIdx < 3 ? icoKnob : (learnIdx == 5 ? icoPedal : icoSwitch);
+        addHeader (menu, menuLnf.f, ico, menuAccent, name, "MIDI: " + ccText (learnIdx));
+        menu.addItem (1000 + learnIdx, "MIDI Learn: " + name, true, lt == learnIdx);
         menu.addItem (1100 + learnIdx, "Clear MIDI: " + name, proc.ccMap[learnIdx].load() >= 0);
         if (lt >= 0) menu.addItem (1200, "Cancel MIDI learn");
         menu.addSeparator();
     }
+    else
+        addHeader (menu, menuLnf.f, icoPedal, menuAccent, "Strong Pickle", "Jumbo fuzz  v" + String (JucePlugin_VersionString));
 
     PopupMenu sizes;
     {
-        // Plugin size : taille de cette fenetre + taille par defaut des nouvelles fenetres (comme Octopus)
         const char* names[numSizes] = { "60 %", "75 %", "100 %" };
         const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes);
         PopupMenu defSizes;
@@ -751,8 +774,8 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
         }
         sizes.addSeparator();
         sizes.addSubMenu ("Default size (new windows)", defSizes);
-        menu.addSubMenu ("Plugin size", sizes);
     }
+    menu.addSubMenu ("Plugin size", sizes);
     menu.addSeparator();
 
     PopupMenu factory;
@@ -782,9 +805,9 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
     menu.addSubMenu ("Settings", settings);
 
     PopupMenu midi;
+    midi.addSectionHeader ("MIDI Learn");
     for (int i = 0; i < PickleAudioProcessor::numLearn; ++i)
-        midi.addItem (1000 + i, "Learn: " + String (PickleAudioProcessor::learnDef (i).name) + " (" + ccText (i) + ")",
-                      true, lt == i);
+        midi.addItem (1000 + i, "Learn: " + String (PickleAudioProcessor::learnDef (i).name) + "  (" + ccText (i) + ")", true, lt == i);
     midi.addSeparator();
     if (lt >= 0) midi.addItem (1200, "Cancel MIDI learn");
     midi.addItem (1201, "Clear all MIDI assignments");
@@ -793,7 +816,7 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
     midi.addItem (911, "Program Change 1-" + String (PickleAudioProcessor::getNumFactoryPresets()) + "  Factory presets", false);
     menu.addSubMenu ("MIDI", midi);
     menu.addSeparator();
-    menu.addItem (999, "Strong Pickle fuzz v" + String (JucePlugin_VersionString) + " - NINE HANDS | DSP", false);
+    menu.addItem (999, "Strong Pickle v" + String (JucePlugin_VersionString) + "  NINE HANDS | DSP", false);
 
     menu.showMenuAsync (PopupMenu::Options().withTargetComponent (this),
         [safe = Component::SafePointer<PickleAudioProcessorEditor> (this)] (int r)
@@ -804,8 +827,8 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
             if      (r >= 1 && r < 1 + numSizes) ed.setScaledHeight (ed.sizeHeight (r - 1));
             else if (r >= 20 && r < 20 + numSizes)
             {
-                WigaWindowSize::setDefaultIndex (JucePlugin_Name, r - 20);   // toutes les nouvelles fenetres de ce plugin
-                ed.setScaledHeight (ed.sizeHeight (r - 20));                // et cette fenetre tout de suite
+                WigaWindowSize::setDefaultIndex (JucePlugin_Name, r - 20);
+                ed.setScaledHeight (ed.sizeHeight (r - 20));
             }
             else if (r == 41) pr.setParamValue ("midiFsMode", 0.0f);
             else if (r == 42) pr.setParamValue ("midiFsMode", 1.0f);

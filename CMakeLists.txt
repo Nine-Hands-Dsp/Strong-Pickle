@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(StrongPickle VERSION 1.4.3)
+project(StrongPickle VERSION 1.5.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,7 +28,7 @@ endif()
 
 # visuel integre au plugin (aucun fichier externe a l'execution)
 juce_add_binary_data(StrongPickleAssets SOURCES
-  background.jpg toggle_strip.png glow_yellow.png glow_yellow_oct.png pickle_glow.png Poppins-Medium.ttf)
+  background.png toggle_strip.png glow_yellow.png glow_yellow_oct.png pickle_glow.png led_on.png fs_refl.png Poppins-Medium.ttf Poppins-Bold.ttf Poppins-Light.ttf Poppins-Regular.ttf NineHandsLogo.svg)
 set_target_properties(StrongPickleAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 juce_add_plugin(StrongPickle
@@ -39,7 +39,7 @@ juce_add_plugin(StrongPickle
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Strong Pickle"
-  VERSION 1.4.3
+  VERSION 1.5.0
   DESCRIPTION "Jumbo fuzz (Swollen Pickle MkIII style) - single pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE
