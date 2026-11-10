@@ -10,7 +10,7 @@ namespace
     // repere 617,5 x 900 (fond 1235 x 1800 / 2), positions generees par tools/make_art.py dans Layout.h
     // Barre de presets et ligne d'etat AU MEME ENDROIT (regle des skills, nov. 2026) : une seule pastille,
     // centree sur l'ancien bloc ecran + barre, meme largeur (800 px du fond).
-    const float barH = 38.0f;
+    const float barH = 38.0f, barFont = 23.0f;     // texte agrandi (presets et ligne d'etat a la meme taille)
     const Rectangle<float> barRect { layout::statusRect.getX(),
                                      (layout::statusRect.getY() + layout::presetRect.getBottom()) * 0.5f - barH * 0.5f,
                                      layout::statusRect.getWidth(), barH };
@@ -609,7 +609,7 @@ void PickleAudioProcessorEditor::drawStatus (Graphics& g)
     g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.2f);
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont * 1.12f)));
+    g.setFont (Font (FontOptions (labelFace).withHeight (barFont)));
     g.setColour (screenInk.withAlpha (a));
     g.drawFittedText (lastLine1, r.reduced (r.getHeight() * 0.5f, 0.0f).toNearestInt(), Justification::centred, 1, 0.6f);
 }
@@ -630,7 +630,7 @@ void PickleAudioProcessorEditor::drawPresetBar (Graphics& g)
     };
     arrow (r.withWidth (aw), true, hoverZone == 1);
     arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hoverZone == 3);
-    g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont)));
+    g.setFont (Font (FontOptions (labelFace).withHeight (barFont)));
     g.setColour ((midiFlash > 0 ? Colour (0xffc8ff9c) : screenInk).withAlpha ((hoverZone == 2 ? 1.0f : 0.92f) * a));
     g.drawFittedText (lastPreset, r.reduced (aw, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
 }
