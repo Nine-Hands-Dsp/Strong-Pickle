@@ -18,7 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1] if len(sys.argv) > 2 else None
 OUT = sys.argv[-1]
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 TMP = os.path.dirname(os.path.abspath(OUT))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 
@@ -43,12 +43,13 @@ if SHOTS:
     # ---------- capture annotee ----------
     kn, tg = LAY["knobs"], LAY["toggles"]
     st_, pr_ = LAY["status"], LAY["preset"]
+    BAR = (st_[0], (st_[1] + pr_[1] + pr_[3]) * 0.5 - 19.0, st_[2], 38.0)   # v1.5.3 : une seule pastille presets / ligne d'etat
     marks = [  # numero, x, y (unites du plugin)
         (1, kn[0][0] - 70, kn[0][1] - 62), (2, kn[1][0] + 70, kn[1][1] - 62), (3, kn[2][0] + 64, kn[2][1] - 44),
         (4, tg[0][0] - 42, tg[0][1] - 20), (5, tg[1][0] + 42, tg[1][1] - 20),
-        (6, st_[0] - 4, st_[1] + st_[3] * 0.5), (7, pr_[0] - 4, pr_[1] + pr_[3] * 0.5), (8, LAY["pickle"][0] + 34, LAY["pickle"][1] + 46),
-        (9, LAY["led"][0] - 30, LAY["led"][1]), (10, LAY["fs"][0] + 70, LAY["fs"][1]),
-        (11, 40, LAY["jackY"] - 50), (12, 577, LAY["jackY"] - 50), (13, LAY["octave"][0] + 34, LAY["octave"][1] + 34), (14, LAY["octLed"][0], LAY["octLed"][1] - 26)]
+        (6, BAR[0] + 4, BAR[1] - 18), (7, LAY["pickle"][0] + 34, LAY["pickle"][1] + 46),
+        (8, LAY["led"][0] - 30, LAY["led"][1]), (9, LAY["fs"][0] + 70, LAY["fs"][1]),
+        (10, 40, LAY["jackY"] - 50), (11, 577, LAY["jackY"] - 50), (12, LAY["octave"][0] + 34, LAY["octave"][1] + 34), (13, LAY["octLed"][0], LAY["octLed"][1] - 26)]
     ann = src.copy(); dr = ImageDraw.Draw(ann)
     fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 34)
     for n, x, y in marks:
@@ -72,7 +73,8 @@ if SHOTS:
     box_on = (165, 525, 540, 690)
     on_img = strip([crop_u(shot("pickle_bypass.png"), box_on), crop_u(src, box_on)], os.path.join(TMP, "pickle_onoff.png"))
     # ecran + barre de presets
-    bar_img = os.path.join(TMP, "pickle_bar.png"); crop_u(src, (st_[0] - 8, st_[1] - 8, st_[0] + st_[2] + 8, pr_[1] + pr_[3] + 8)).save(bar_img)
+    box_bar = (BAR[0] - 8, BAR[1] - 8, BAR[0] + BAR[2] + 8, BAR[1] + BAR[3] + 8)
+    bar_img = strip([crop_u(shot("pickle_bypass.png"), box_bar), crop_u(src, box_bar)], os.path.join(TMP, "pickle_bar.png"))
     # inverseur OCTAVE : milieu (off), haut (Fat), bas (Bright)
     ox, oy = LAY["octave"]
     box_oc = (ox - 72, oy - 54, ox + 108, oy + 54)
@@ -265,15 +267,14 @@ T = {
    ["3", "FILTER", "Tonalité : sombre et gras à gauche, brillant et fin à droite."],
    ["4", "Inverseur CRUNCH", "En bas = classique (lisse, compressé), en haut = ouvert, plus granuleux et plus fort."],
    ["5", "Inverseur SCOOP", "En bas = voix classique, en haut = médiums bien creusés."],
-   ["6", "Écran", "Réglage de la commande que vous venez de bouger ; apparaît quand un réglage bouge."],
-   ["7", "Barre de presets", "Flèches = preset usine précédent / suivant, clic sur le nom = menu des presets."],
-   ["8", "PICKLE", "S'allume en vert quand l'effet est actif."],
-   ["9", "LED", "Jaune = effet actif, éteinte = bypass."],
-   ["10", "Footswitch", "Effet actif / bypass."],
-   ["11", "OUT", "Jack de sortie."],
-   ["12", "IN", "Jack d'entrée."],
-   ["13", "Inverseur OCTAVE", "3 positions, comme sur l'Ultimate Octave : haut = Fat, milieu = sans octave, bas = Bright."],
-   ["14", "LED d'octave", "Jaune = octave en service (Fat ou Bright), effet actif."]],
+   ["6", "Barre de presets / ligne d'état", "Au repos : flèches = preset usine précédent / suivant, clic sur le nom = menu des presets. Pendant un réglage : valeur en direct de la commande."],
+   ["7", "PICKLE", "S'allume en vert quand l'effet est actif."],
+   ["8", "LED", "Jaune = effet actif, éteinte = bypass."],
+   ["9", "Footswitch", "Effet actif / bypass."],
+   ["10", "OUT", "Jack de sortie."],
+   ["11", "IN", "Jack d'entrée."],
+   ["12", "Inverseur OCTAVE", "3 positions, comme sur l'Ultimate Octave : haut = Fat, milieu = sans octave, bas = Bright."],
+   ["13", "LED d'octave", "Jaune = octave en service (Fat ou Bright), effet actif."]],
  ctl_t="4. Les commandes en détail",
  ctl=[("SUSTAIN", "Règle le gain du circuit, de <b>18 dB</b> au minimum à <b>62 dB</b> au maximum (les chiffres de la fiche Way Huge). C'est un diviseur entre l'étage d'entrée et le premier étage d'écrêtage. Le gain monte vite en début de course : vers 8 – 10 h, la fuzz est ronde et encore dynamique ; vers midi, les deux étages d'écrêtage sont pleinement attaqués (fuzz carrée) ; au-delà, c'est un mur de sustain dense. Le niveau suit votre jeu et les notes s'éteignent naturellement, sans pompage."),
       ("FILTER", "Le tone stack passif de la famille Big Muff, avec ses vraies valeurs : une branche passe-bas (39 k / 10 nF), une branche passe-haut (4 nF / 22 k) et le potentiomètre Filter de 100 k entre les deux. Tout à gauche, le grave gonfle et les aigus tombent ; tout à droite, le grave s'amincit et le grain ressort ; vers midi, les deux branches se rejoignent et laissent le creux de médiums typique."),
@@ -296,13 +297,13 @@ T = {
        ["Crunch", "MIDI Learn", "Bascule : 64 ou plus = en haut"], ["Scoop", "MIDI Learn", "Bascule : 64 ou plus = en haut"],
        ["Footswitch", "MIDI Learn", "À accrochage (127 = on / 0 = off) ou momentané (bascule à chaque appui)"],
        ["Octave", "MIDI Learn", "3 zones : 0-42 = off, 43-84 = Fat, 85-127 = Bright"]],
- learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b> (<b>—</b> si rien n'est assigné), puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. L'écran affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Clear all MIDI assignments</b> les retire toutes. Les assignations sont sauvegardées avec le projet. Les anciens projets restés sur l'ancienne table d'usine (CC 20 à 26, jamais modifiée) s'ouvrent sans assignation ; un projet où vous aviez changé au moins une assignation garde ses assignations.",
+ learn=["<b>MIDI Learn</b> : clic droit sur une commande, choisissez <b>MIDI Learn: &lt;nom&gt; (CC n)</b> (<b>—</b> si rien n'est assigné), puis bougez la pédale d'expression ou appuyez sur le bouton MIDI. La ligne d'état affiche <b>MIDI LEARN: move a control for Sustain</b>, puis confirme pendant 2 secondes, par ex. <b>Sustain = CC 64</b>. Un CC déjà utilisé par une autre commande passe à la nouvelle. <b>Clear MIDI</b> retire une assignation ; clic droit &gt; MIDI &gt; <b>Clear all MIDI assignments</b> les retire toutes. Les assignations sont sauvegardées avec le projet. Les anciens projets restés sur l'ancienne table d'usine (CC 20 à 26, jamais modifiée) s'ouvrent sans assignation ; un projet où vous aviez changé au moins une assignation garde ses assignations.",
         "<b>Pédales d'expression</b> : les mouvements ne sont jamais saccadés. Strong Pickle rejoint chaque nouvelle valeur par une rampe sur le temps mesuré entre deux messages ; la course réelle de votre pédale est apprise automatiquement (une pédale qui n'envoie que 2 à 116 atteint quand même exactement 0 et 100 %). Pour un potard sur un CC de 0 à 31, le CC n+32 est lu comme sa partie fine (14 bits).",
         "<b>Footswitch MIDI</b> : à accrochage (par défaut) ou momentané, clic droit &gt; Settings. <b>Program Change 1 à 13</b> : rappel des presets usine. Tous les paramètres sont aussi automatisables dans le DAW."],
  win_t="7. Fenêtre",
  win=["Strong Pickle utilise le format pédale simple d'Echoflex et de Doorn : elle ne peut jamais être réduite sous 60 %. Clic droit &gt; <b>Plugin size</b> : <b>60 %</b>, <b>75 %</b> ou <b>100 %</b> pour cette fenêtre, « (default) » indiquant la taille par défaut ; <b>Default size (new windows)</b> choisit la taille d'ouverture de toutes les nouvelles fenêtres de Strong Pickle (réglage commun à toutes les instances, enregistré sur l'ordinateur) et redimensionne aussitôt la fenêtre courante. La taille n'est pas sauvegardée avec le projet : à chaque ouverture, la fenêtre revient à la taille par défaut (60 % tant que vous n'en avez pas choisi une autre). Vous pouvez aussi tirer le coin en bas à droite jusqu'à 150 % (les proportions sont conservées).",
-      "L'<b>écran</b> affiche le réglage du potard ou de l'inverseur que vous venez de bouger (potards en %, par ex. <i>sustain 64 %</i>, <i>crunch up (open)</i>) ; il apparaît quand un réglage bouge et s'efface au bout de 2,5 s. Il affiche aussi les messages du MIDI Learn. La <b>barre de presets</b> en dessous affiche en permanence le preset (ou <i>Edited</i>) et l'état du bypass."],
- bar_cap="Écran et barre de presets.",
+      "La <b>barre de presets</b> et la <b>ligne d'état</b> partagent la même pastille. Au repos, elle affiche le preset en cours (ou <i>Edited</i>) et l'état du bypass. Dès qu'un réglage bouge (souris, molette, automation, MIDI), la ligne d'état prend sa place et affiche la valeur en direct (potards en %, par ex. <i>sustain 64 %</i>, <i>crunch up (open)</i>) ainsi que les messages du MIDI Learn ; elle s'efface 2,5 s après le dernier mouvement et la barre de presets revient. Un clic sur la pastille pendant que la ligne d'état est affichée fait revenir la barre de presets tout de suite."],
+ bar_cap="La même pastille au repos (barre de presets) et pendant un réglage (ligne d\'état).",
  pre_t="8. Presets",
  pre=["Utilisez les flèches de la barre de presets, cliquez sur son nom, faites un clic droit n'importe où, ou passez par le menu de presets de votre DAW. Clic droit &gt; <b>Save user preset</b> enregistre jusqu'à 9 presets personnels."],
  fac_hdr=["PC", "Preset", "Loud. / Sust. / Filter (%)", "Crunch · Scoop · Octave", "Description"],
