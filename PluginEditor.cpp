@@ -8,8 +8,14 @@ using namespace juce;
 namespace
 {
     // repere 617,5 x 900 (fond 1235 x 1800 / 2), positions generees par tools/make_art.py dans Layout.h
-    const Rectangle<float> statusRect = layout::statusRect;
-    const Rectangle<float> presetRect = layout::presetRect;
+    // Barre de presets et ligne d'etat AU MEME ENDROIT (regle des skills, nov. 2026) : une seule pastille,
+    // centree sur l'ancien bloc ecran + barre, meme largeur (800 px du fond).
+    const float barH = 38.0f;
+    const Rectangle<float> barRect { layout::statusRect.getX(),
+                                     (layout::statusRect.getY() + layout::presetRect.getBottom()) * 0.5f - barH * 0.5f,
+                                     layout::statusRect.getWidth(), barH };
+    const Rectangle<float> statusRect = barRect;
+    const Rectangle<float> presetRect = barRect;
 
     const float rotStart = MathConstants<float>::pi * (7.0f / 6.0f);    // -150 degres (7 h)
     const float rotEnd   = MathConstants<float>::pi * (17.0f / 6.0f);   // +150 degres (5 h)
@@ -456,7 +462,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (midiFlash > 0) --midiFlash;
 
     const float target = now < statusUntil ? 1.0f : 0.0f;
-    statusAlpha += (target - statusAlpha) * (target > statusAlpha ? 0.45f : 0.12f);
+    statusAlpha += (target - statusAlpha) * (target > statusAlpha ? 0.45f : 0.30f);   // ~120 ms a l'apparition, ~300 ms au retour
     if (statusAlpha < 0.005f) statusAlpha = 0.0f;
     if (statusAlpha > 0.995f) statusAlpha = 1.0f;
 
@@ -489,12 +495,12 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (statusAlpha - drawnStatus) > 0.003f || (statusAlpha > 0.0f && textChanged))
     {
         drawnStatus = statusAlpha;
-        askRepaint (scaled (statusRect.expanded (4.0f)));
+        askRepaint (scaled (barRect.expanded (3.0f)));
     }
     if (pl != lastPreset || hoverZone != drawnHover || midiFlash > 0)
     {
         lastPreset = pl; drawnHover = hoverZone;
-        askRepaint (scaled (presetRect.expanded (3.0f)));
+        askRepaint (scaled (barRect.expanded (3.0f)));
     }
 }
 
@@ -595,46 +601,37 @@ void PickleAudioProcessorEditor::drawLeds (Graphics& g)
 
 void PickleAudioProcessorEditor::drawStatus (Graphics& g)
 {
-    // ecran : toujours visible (cadre semi-transparent : le cornichon se devine dessous), texte en fondu
-    const auto r = statusRect;
+    // pastille unique : fond + contour (la ligne d'etat et la barre de presets s'y relaient en fondu croise)
+    const auto r = barRect;
     g.setColour (panel.withAlpha (0.80f));
-    g.fillRoundedRectangle (r, 7.0f);
-    g.setColour (Colour (0xff2f4a2a).withAlpha (0.9f));
-    for (int i = 1; i < 12; ++i)                                     // cases discretes de l'ecran
-    {
-        const float x = r.getX() + r.getWidth() * (float) i / 12.0f;
-        g.fillRect (x - 0.4f, r.getY() + 4.0f, 0.8f, r.getHeight() - 8.0f);
-    }
-    g.setColour (Colour (0xff8fb07e).withAlpha (0.45f));
-    g.drawRoundedRectangle (r.reduced (0.6f), 7.0f, 1.2f);
+    g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
+    g.setColour (Colour (0xff8fb07e).withAlpha (hoverZone != 0 && statusAlpha <= 0.0f ? 0.65f : 0.40f));
+    g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.2f);
     const float a = statusAlpha;
     if (a <= 0.0f) return;
-    const bool longLine = lastLine1.length() > 20;
-    g.setFont (Font (FontOptions (labelFace).withHeight (longLine ? layout::statusFont * 0.66f : layout::statusFont)));
+    g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont * 1.12f)));
     g.setColour (screenInk.withAlpha (a));
-    g.drawFittedText (lastLine1, r.reduced (12.0f, 0.0f).toNearestInt(), Justification::centred, longLine ? 2 : 1, 0.75f);
+    g.drawFittedText (lastLine1, r.reduced (r.getHeight() * 0.5f, 0.0f).toNearestInt(), Justification::centred, 1, 0.6f);
 }
 
 void PickleAudioProcessorEditor::drawPresetBar (Graphics& g)
 {
-    const auto r = presetRect;
-    g.setColour (panel.withAlpha (0.78f));
-    g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
-    g.setColour (Colour (0xff8fb07e).withAlpha (hoverZone != 0 ? 0.65f : 0.40f));
-    g.drawRoundedRectangle (r.reduced (0.6f), r.getHeight() * 0.5f, 1.2f);
+    const float a = 1.0f - statusAlpha;                 // la barre de presets revient quand la ligne d'etat s'efface
+    if (a <= 0.0f) return;
+    const auto r = barRect;
     const float aw = 34.0f;
     auto arrow = [&] (Rectangle<float> ar, bool left, bool hot)
     {
-        Path p; const auto c = ar.getCentre(); const float s = 5.5f;
-        if (left) p.addTriangle (c.x + s * 0.6f, c.y - s, c.x + s * 0.6f, c.y + s, c.x - s * 0.8f, c.y);
-        else      p.addTriangle (c.x - s * 0.6f, c.y - s, c.x - s * 0.6f, c.y + s, c.x + s * 0.8f, c.y);
-        g.setColour (screenInk.withAlpha (hot ? 1.0f : 0.6f));
+        Path p; const auto c = ar.getCentre(); const float sz = 5.5f;
+        if (left) p.addTriangle (c.x + sz * 0.6f, c.y - sz, c.x + sz * 0.6f, c.y + sz, c.x - sz * 0.8f, c.y);
+        else      p.addTriangle (c.x - sz * 0.6f, c.y - sz, c.x - sz * 0.6f, c.y + sz, c.x + sz * 0.8f, c.y);
+        g.setColour (screenInk.withAlpha ((hot ? 1.0f : 0.6f) * a));
         g.fillPath (p);
     };
     arrow (r.withWidth (aw), true, hoverZone == 1);
     arrow (r.withTrimmedLeft (r.getWidth() - aw), false, hoverZone == 3);
     g.setFont (Font (FontOptions (labelFace).withHeight (layout::presetFont)));
-    g.setColour ((midiFlash > 0 ? Colour (0xffc8ff9c) : screenInk).withAlpha (hoverZone == 2 ? 1.0f : 0.92f));
+    g.setColour ((midiFlash > 0 ? Colour (0xffc8ff9c) : screenInk).withAlpha ((hoverZone == 2 ? 1.0f : 0.92f) * a));
     g.drawFittedText (lastPreset, r.reduced (aw, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
 }
 
@@ -681,6 +678,11 @@ void PickleAudioProcessorEditor::mouseDown (const MouseEvent& e)
 {
     if (e.mods.isPopupMenu()) { showContextMenu(); return; }
     const float s = (float) getHeight() / baseH;
+    if (statusAlpha > 0.0f && barRect.contains (e.position / s))
+    {   // la ligne d'etat ne bloque pas : un clic fait revenir la barre de presets
+        statusUntil = 0.0; learnLineUntil = 0.0;
+        return;
+    }
     switch (presetZoneAt (e.position / s))
     {
         case 1: stepPreset (-1); break;
