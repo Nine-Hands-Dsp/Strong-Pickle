@@ -210,6 +210,7 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     lightFace   = Typeface::createSystemTypefaceFor (BinaryData::PoppinsLight_ttf, BinaryData::PoppinsLight_ttfSize);
     regularFace = Typeface::createSystemTypefaceFor (BinaryData::PoppinsRegular_ttf, BinaryData::PoppinsRegular_ttfSize);
     menuLnf.f = { regularFace, labelFace, boldFace };
+    glowPc = NineHandsGlow::percent (JucePlugin_Name);
     if (auto xml = XmlDocument::parse (String::fromUTF8 (BinaryData::NineHandsLogo_svg, BinaryData::NineHandsLogo_svgSize)))
         logo = Drawable::createFromSVG (*xml);
     buildPrint();
@@ -257,17 +258,18 @@ PickleAudioProcessorEditor::PickleAudioProcessorEditor (PickleAudioProcessor& p)
     lastMidiCount = proc.midiCounter.load();
     ledLevel = proc.rawAt (PickleAudioProcessor::rActive) > 0.5f ? 1.0f : 0.0f;
     octLedLevel = (ledLevel > 0.5f && roundToInt (proc.rawAt (PickleAudioProcessor::rOctave)) != 0) ? 1.0f : 0.0f;
-    footswitch.ledLevel = ledLevel;
+    footswitch.ledLevel = ledLevel * glowAmt();
 
     // Taille par defaut = taille minimale (impossible de reduire en dessous), proportions bloquees
     const int defaultW = roundToInt ((float) defaultH * baseW / baseH);
     setResizable (true, true);
     setResizeLimits (defaultW, defaultH, roundToInt ((float) maxH * baseW / baseH), maxH);
+    hostLock.setLimits (defaultW, defaultH, roundToInt ((float) maxH * baseW / baseH), maxH);
     if (auto* cons = getConstrainer())
         cons->setFixedAspectRatio ((double) baseW / (double) baseH);
     setOpaque (true);
     setSize (defaultW, defaultH);
-    setScaledHeight (sizeHeight (WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes)));
+    setScaledHeight (sizeHeight (NineHandsWindow::openIndex (JucePlugin_Name, proc.uiSizeIdx.load(), numSizes)));   // taille du projet, sinon taille par defaut
     rebuildCaches();
     startTimerHz (30);
 }
@@ -290,6 +292,7 @@ void PickleAudioProcessorEditor::setScaledHeight (int h)
 {
     h = jlimit ((int) defaultH, (int) maxH, h);
     setSize (roundToInt ((float) h * baseW / baseH), h);
+    hostLock.enforce();
 }
 
 Rectangle<int> PickleAudioProcessorEditor::scaled (Rectangle<float> r) const
@@ -367,7 +370,7 @@ void PickleAudioProcessorEditor::useSoftwareRenderer()
    #endif
 }
 
-void PickleAudioProcessorEditor::parentHierarchyChanged() { useSoftwareRenderer(); }
+void PickleAudioProcessorEditor::parentHierarchyChanged() { useSoftwareRenderer(); hostLock.track (*this); }
 void PickleAudioProcessorEditor::visibilityChanged()      { useSoftwareRenderer(); if (isShowing()) repaint(); }
 
 void PickleAudioProcessorEditor::askRepaint (Rectangle<int> r)
@@ -412,6 +415,13 @@ void PickleAudioProcessorEditor::timerCallback()
 {
     const double now = Time::getMillisecondCounterHiRes();
     if (getPeer() != lastPeer || now - lastRendererCheckMs > 1000.0) { lastRendererCheckMs = now; useSoftwareRenderer(); }
+    if (now - lastGlowReadMs > 3000.0)       // clic droit > Glow intensity : commun a toutes les fenetres (jamais dans paint)
+    {
+        lastGlowReadMs = now;
+        const int pc = NineHandsGlow::percent (JucePlugin_Name);
+        if (pc != glowPc) setGlowPercent (pc);
+    }
+    hostLock.track (*this);
 
     if (resizeSettle > 0 && --resizeSettle == 0) rebuildCaches();
     else if (resizeSettle == 0 && now - lastScaleCheckMs > 250.0)
@@ -474,7 +484,7 @@ void PickleAudioProcessorEditor::timerCallback()
     if (std::abs (ledLevel - drawnLed) > 0.004f)
     {
         drawnLed = ledLevel;
-        footswitch.ledLevel = ledLevel;
+        footswitch.ledLevel = ledLevel * glowAmt();
         askRepaint (scaled (layout::glowRect));
         askRepaint (scaled (layout::pickleGlowRect));
         footswitch.repaint();
@@ -574,7 +584,7 @@ void PickleAudioProcessorEditor::drawGlows (Graphics& g)
     auto layer = [&] (float level, const Image& img, Rectangle<float> r)
     {
         if (level <= 0.003f || ! img.isValid()) return;
-        g.setOpacity (level); g.drawImage (img, r); g.setOpacity (1.0f);
+        g.setOpacity (level * glowAmt()); g.drawImage (img, r); g.setOpacity (1.0f);   // halos : clic droit > Glow intensity
     };
     layer (ledLevel, glowS.isValid() ? glowS : glow, layout::glowRect);
     layer (octLedLevel, glowOctS.isValid() ? glowOctS : glowOct, layout::octGlowRect);
@@ -590,8 +600,8 @@ void PickleAudioProcessorEditor::drawLeds (Graphics& g)
         if (ledOn.isValid()) { g.setOpacity (level); g.drawImage (ledOn, { c.x - hs, c.y - hs, hs * 2.0f, hs * 2.0f }); }
         g.setOpacity (1.0f);
         const float hr = 20.0f;
-        ColourGradient halo (ledYellow.withAlpha (0.28f * level), c.x, c.y, ledYellow.withAlpha (0.0f), c.x + hr, c.y, true);
-        halo.addColour (0.4, ledYellow.withAlpha (0.07f * level));
+        ColourGradient halo (ledYellow.withAlpha (0.28f * level * glowAmt()), c.x, c.y, ledYellow.withAlpha (0.0f), c.x + hr, c.y, true);
+        halo.addColour (0.4, ledYellow.withAlpha (0.07f * level * glowAmt()));
         g.setGradientFill (halo);
         g.fillEllipse (c.x - hr, c.y - hr, hr * 2.0f, hr * 2.0f);
     };
@@ -739,7 +749,13 @@ void PickleAudioProcessorEditor::handleMidiMenu (int r)
     else if (r == 1201) { proc.learnTarget.store (-1); proc.resetMidiMap(); }
 }
 
-void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
+void PickleAudioProcessorEditor::setGlowPercent (int pc)
+{
+    glowPc = NineHandsGlow::sanitize (pc);
+    drawnLed = drawnOctLed = -1.0f;         // le timer redessine les lumieres
+}
+
+PopupMenu PickleAudioProcessorEditor::buildContextMenu (int learnIdx)
 {
     using namespace NineHandsMenu;
     PopupMenu menu;
@@ -752,88 +768,83 @@ void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
     const int lt = proc.learnTarget.load();
     if (learnIdx >= 0)
     {
-        // menu d'une commande : en-tete (pastille + nom + assignation MIDI), puis MIDI Learn
-        const String name = PickleAudioProcessor::learnDef (learnIdx).name;
-        const int ico = learnIdx < 3 ? icoKnob : (learnIdx == 5 ? icoPedal : icoSwitch);
-        addHeader (menu, menuLnf.f, ico, menuAccent, name, "MIDI: " + ccText (learnIdx));
+        // menu d'une commande (tronc commun) : en-tete, MIDI Learn, Clear MIDI, Cancel MIDI learn
+        const int i = learnIdx;
+        const String name = PickleAudioProcessor::learnDef (i).name;
+        addHeader (menu, menuLnf.f, (learnIdx < 3 ? icoKnob : (learnIdx == 5 ? icoPedal : icoSwitch)), menuAccent, name, "MIDI: " + ccText (learnIdx));
         menu.addItem (1000 + learnIdx, "MIDI Learn: " + name, true, lt == learnIdx);
         menu.addItem (1100 + learnIdx, "Clear MIDI: " + name, proc.ccMap[learnIdx].load() >= 0);
-        if (lt >= 0) menu.addItem (1200, "Cancel MIDI learn");
-        menu.addSeparator();
+        menu.addItem (1200, "Cancel MIDI learn", lt >= 0);
+        return menu;
     }
-    else
-        addHeader (menu, menuLnf.f, icoPedal, menuAccent, "Strong Pickle", "Jumbo fuzz  v" + String (JucePlugin_VersionString));
 
-    PopupMenu sizes;
-    {
-        const char* names[numSizes] = { "60 %", "75 %", "100 %" };
-        const int def = WigaWindowSize::defaultIndex (JucePlugin_Name, numSizes);
-        PopupMenu defSizes;
-        for (int i = 0; i < numSizes; ++i)
-        {
-            sizes.addItem (1 + i, String (names[i]) + (i == def ? "  (default)" : ""), true, std::abs (getHeight() - sizeHeight (i)) <= 2);
-            defSizes.addItem (20 + i, names[i], true, i == def);
-        }
-        sizes.addSeparator();
-        sizes.addSubMenu ("Default size (new windows)", defSizes);
-    }
-    menu.addSubMenu ("Plugin size", sizes);
-    menu.addSeparator();
-
+    // menu de la pedale (tronc commun) : presets, reglages propres, MIDI, Plugin size, Glow intensity
+    addHeader (menu, menuLnf.f, icoPedal, menuAccent, "Strong Pickle", "Jumbo fuzz  v" + String (JucePlugin_VersionString));
     PopupMenu factory;
     for (int i = 0; i < PickleAudioProcessor::getNumFactoryPresets(); ++i)
         factory.addItem (100 + i, String (i + 1) + ". " + PickleAudioProcessor::getFactoryPreset (i).name, true, proc.currentPreset.load() == i);
     menu.addSubMenu ("Factory presets", factory);
     PopupMenu load, save;
     for (int slot = 1; slot <= 9; ++slot)
-    {
+    {{
         const bool exists = proc.hasUserPreset (slot);
         load.addItem (200 + slot, "User " + String (slot) + (exists ? "" : "  (empty)"), exists, proc.currentPreset.load() == 100 + slot);
         save.addItem (300 + slot, "User " + String (slot) + (exists ? "  (overwrite)" : ""));
-    }
+    }}
     menu.addSubMenu ("Load user preset", load);
     menu.addSubMenu ("Save user preset", save);
     menu.addSeparator();
-
     PopupMenu gate;
     const int gNow = jlimit (0, 3, roundToInt (proc.rawAt (PickleAudioProcessor::rGate)));
     const char* gateHelp[4] = { "Off (default, like the original pedal)", "Light", "Medium", "Strong (noisy pickups / hum)" };
     for (int i = 0; i < 4; ++i) gate.addItem (50 + i, gateHelp[i], true, gNow == i);
     menu.addSubMenu ("Noise gate", gate);
-
-    PopupMenu settings;
-    settings.addItem (41, "MIDI footswitch latching (127 = on / 0 = off)", true, proc.rawAt (PickleAudioProcessor::rMidiFsMode) < 0.5f);
-    settings.addItem (42, "MIDI footswitch momentary (toggle each press)", true, proc.rawAt (PickleAudioProcessor::rMidiFsMode) > 0.5f);
-    menu.addSubMenu ("Settings", settings);
+    menu.addSeparator();
 
     PopupMenu midi;
     midi.addSectionHeader ("MIDI Learn");
     for (int i = 0; i < PickleAudioProcessor::numLearn; ++i)
         midi.addItem (1000 + i, "Learn: " + String (PickleAudioProcessor::learnDef (i).name) + "  (" + ccText (i) + ")", true, lt == i);
     midi.addSeparator();
-    if (lt >= 0) midi.addItem (1200, "Cancel MIDI learn");
+    midi.addItem (1200, "Cancel MIDI learn", lt >= 0);
     midi.addItem (1201, "Clear all MIDI assignments");
     midi.addSeparator();
-    midi.addItem (910, "CC n+32 = fine (14-bit) for knobs on CC 0-31", false);
-    midi.addItem (911, "Program Change 1-" + String (PickleAudioProcessor::getNumFactoryPresets()) + "  Factory presets", false);
+    NineHandsWindow::addMidiFootswitchMode (midi, proc.rawAt (PickleAudioProcessor::rMidiFsMode) < 0.5f);
+    midi.addSeparator();
+    NineHandsWindow::addProgramChangeInfo (midi);
     menu.addSubMenu ("MIDI", midi);
     menu.addSeparator();
-    menu.addItem (999, "Strong Pickle v" + String (JucePlugin_VersionString) + "  NINE HANDS | DSP", false);
 
-    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),    // menu clic droit : toujours la ou l on clique
+    const char* names[numSizes] = { "60 %", "75 %", "100 %" };
+    const int heights[numSizes] = { sizeHeight (0), sizeHeight (1), sizeHeight (2) };
+    menu.addSubMenu ("Plugin size", NineHandsWindow::sizeMenu (JucePlugin_Name, numSizes, names, heights, getHeight()));
+    menu.addSubMenu ("Glow intensity", NineHandsWindow::glowMenu (glowPc));
+    return menu;
+}
+
+void PickleAudioProcessorEditor::showContextMenu (int learnIdx)
+{
+    auto menu = buildContextMenu (learnIdx);
+    menu.showMenuAsync (PopupMenu::Options().withMousePosition(),       // menu clic droit : toujours la ou l'on clique
         [safe = Component::SafePointer<PickleAudioProcessorEditor> (this)] (int r)
         {
             if (safe == nullptr || r == 0) return;
             auto& ed = *safe;
             auto& pr = ed.proc;
-            if      (r >= 1 && r < 1 + numSizes) ed.setScaledHeight (ed.sizeHeight (r - 1));
-            else if (r >= 20 && r < 20 + numSizes)
+            int inst = pr.uiSizeIdx.load();
+            const int sz = NineHandsWindow::handleSize (r, JucePlugin_Name, numSizes, inst);
+            if (sz >= 0) { pr.uiSizeIdx = inst; ed.setScaledHeight (ed.sizeHeight (sz)); return; }
+            if (const int pc = NineHandsWindow::handleGlow (r, JucePlugin_Name))
             {
-                WigaWindowSize::setDefaultIndex (JucePlugin_Name, r - 20);
-                ed.setScaledHeight (ed.sizeHeight (r - 20));
+                ed.setGlowPercent (pc);
+                ed.learnLine = "Glow  " + String (pc) + " %";        // ligne d'etat, brievement
+                ed.learnLineUntil = Time::getMillisecondCounterHiRes() + 1500.0;
+                ed.statusUntil = jmax (ed.statusUntil, ed.learnLineUntil);
+                return;
             }
-            else if (r == 41) pr.setParamValue ("midiFsMode", 0.0f);
-            else if (r == 42) pr.setParamValue ("midiFsMode", 1.0f);
+            if (false) {}
+            else if (r == NineHandsWindow::idLatch)     pr.setParamValue ("midiFsMode", 0.0f);
+            else if (r == NineHandsWindow::idMomentary) pr.setParamValue ("midiFsMode", 1.0f);
             else if (r >= 50 && r <= 53) pr.setParamValue ("gate", (float) (r - 50));
             else if (r >= 100 && r < 200) pr.applyFactoryPreset (r - 100);
             else if (r > 200 && r < 300)  pr.loadUserPreset (r - 200);

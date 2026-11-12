@@ -374,6 +374,7 @@ void PickleAudioProcessor::getStateInformation (MemoryBlock& dest)
 {
     auto state = apvts.copyState();
     state.setProperty ("currentPreset", currentPreset.load(), nullptr);
+    state.setProperty ("uiSize", uiSizeIdx.load(), nullptr);
     for (int i = 0; i < numLearn; ++i)
         state.setProperty (String ("cc_") + learnDef (i).id, ccMap[i].load(), nullptr);
     state.setProperty ("midiMapVersion", 2, nullptr);
@@ -387,6 +388,7 @@ void PickleAudioProcessor::setStateInformation (const void* data, int size)
         {
             auto state = ValueTree::fromXml (*xml);
             currentPreset = (int) state.getProperty ("currentPreset", 0);
+            uiSizeIdx = jlimit (-1, 2, (int) state.getProperty ("uiSize", -1));
             // projets d'avant la v1.3.1 : si la table enregistree est exactement l'ancienne table d'usine (CC 20-26,
             // cc_octave absent avant la v1.3.0), elle n'a jamais ete modifiee -> videe ; sinon gardee telle quelle
             const bool midiV2 = (int) state.getProperty ("midiMapVersion", 1) >= 2;

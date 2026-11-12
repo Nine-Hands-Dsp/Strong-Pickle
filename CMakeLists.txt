@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(StrongPickle VERSION 1.5.3)
+project(StrongPickle VERSION 1.6.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,7 +39,7 @@ juce_add_plugin(StrongPickle
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Strong Pickle"
-  VERSION 1.5.3
+  VERSION 1.6.0
   DESCRIPTION "Jumbo fuzz (Swollen Pickle MkIII style) - single pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE
@@ -50,6 +50,17 @@ juce_add_plugin(StrongPickle
 
 target_sources(StrongPickle PRIVATE PluginProcessor.cpp PluginEditor.cpp)
 
+
+# verrou de taille de la fenetre du DAW (jamais sous 60 %, jamais au-dela de 150 %)
+if(APPLE)
+  target_sources(StrongPickle PRIVATE WindowMinSize.mm)
+  target_link_libraries(StrongPickle PRIVATE "-framework Cocoa")
+else()
+  target_sources(StrongPickle PRIVATE WindowMinSize.cpp)
+endif()
+if(WIN32)
+  target_link_libraries(StrongPickle PRIVATE comctl32 user32)
+endif()
 if(MSVC)
   target_compile_options(StrongPickle PRIVATE /utf-8)
 endif()

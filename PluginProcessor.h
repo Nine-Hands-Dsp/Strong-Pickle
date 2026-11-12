@@ -78,6 +78,7 @@ public:
     static juce::StringArray octaveNames() { return { "Off", "Fat", "Bright" }; }   // inverseur OCTAVE : milieu / haut / bas
 
     // ---- informations pour la fenetre ----
+    std::atomic<int> uiSizeIdx { -1 };   // taille de fenetre choisie au menu pour ce projet (-1 = taille par defaut)
     std::atomic<int> currentPreset { 0 };      // >= 0 usine, 100 + n utilisateur, -1 = modifie
     std::atomic<int> presetCounter { 0 };
     std::atomic<int> lastMidiCC { -1 }, lastMidiValue { 0 }, lastMidiProgram { -1 }, midiCounter { 0 };
