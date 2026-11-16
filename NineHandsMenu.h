@@ -22,23 +22,56 @@ namespace NineHandsMenu
     struct Fonts { Typeface::Ptr reg, med, bold; };
     inline Font fnt (const Typeface::Ptr& tf, float h) { return tf != nullptr ? Font (FontOptions (tf).withHeight (h)) : Font (FontOptions (h)); }
 
-    enum Ico { icoNone = 0, icoSave, icoLoad, icoClear, icoMidi, icoLatch, icoSize, icoPreset, icoGate, icoSettings, icoInfo, icoPedal, icoKnob, icoSwitch, icoGlow };
+    enum Ico { icoNone = 0, icoDot, icoSave, icoLoad, icoClear, icoMidi, icoLatch, icoSize, icoPreset, icoGate, icoSettings, icoInfo, icoPedal, icoKnob, icoSwitch, icoGlow };
 
+    // icone choisie d'apres le texte : memes regles que l'editeur de menus (WYSIWYG) de NINE HANDS | DSP
     inline int iconFor (const String& t)
     {
         const auto s = t.toLowerCase();
-        if (s.startsWith ("save")) return icoSave;
-        if (s.startsWith ("load")) return icoLoad;
-        if (s.contains ("clear") || s.startsWith ("reset") || s.startsWith ("cancel")) return icoClear;
-        if (s.contains ("glow") || s.contains ("halo")) return icoGlow;             // reglage du halo des lumieres (nov. 2026)
-        if (s.contains ("latching") || s.contains ("momentary")) return icoLatch;
-        if (s.startsWith ("midi") || s.startsWith ("learn") || s.startsWith ("program change") || s.startsWith ("cc ")) return icoMidi;
-        if (s.contains ("size") || s.endsWith ("%") || s.contains ("% ")) return icoSize;
-        if (s.contains ("preset") || s.startsWith ("user ")) return icoPreset;
-        if (s.contains ("gate")) return icoGate;
-        if (s.startsWith ("settings")) return icoSettings;
-        if (s.contains (" v") && s.contains ("nine hands")) return icoInfo;
-        return icoNone;
+        auto has = [&s] (const char* w) { return s.contains (w); };
+        auto word = [&s] (const char* w)            // mot entier
+        {
+            for (int i = s.indexOf (w); i >= 0; i = s.indexOf (i + 1, w))
+            {
+                const int e = i + (int) strlen (w);
+                if ((i == 0 || ! CharacterFunctions::isLetterOrDigit (s[i - 1])) && (e >= s.length() || ! CharacterFunctions::isLetterOrDigit (s[e]))) return true;
+            }
+            return false;
+        };
+        const auto tr = s.trimEnd();
+        if (has ("glow") || has ("halo") || has ("colours")) return icoGlow;
+        if (has ("size") || has ("full screen") || tr.endsWith ("%") || tr.endsWith ("% (default)") || tr.endsWith ("%  (default)")) return icoSize;
+        if (has ("latch") || has ("momentary")) return icoLatch;
+        if (has ("footswitch")) return icoSwitch;
+        if (has ("midi") || has ("learn") || has ("program change") || has ("nks")) return icoMidi;
+        if (has ("save")) return icoSave;
+        if (word ("clear") || word ("cancel") || word ("reset") || word ("restore")) return icoClear;
+        if (has ("load") || has ("open") || has ("folder") || has ("choose") || has ("show")) return icoLoad;
+        if (has ("preset") || has ("user") || has ("factory") || has ("memory") || has ("sounds") || has ("voice")) return icoPreset;
+        if (has ("gate")) return icoGate;
+        if (has ("settings")) return icoSettings;
+        return icoDot;
+    }
+
+    // icone imposee a une ligne de menu (sinon : icone choisie d'apres le texte)
+    struct IconTag : public Drawable
+    {
+        int ico;
+        explicit IconTag (int i) : ico (i) {}
+        std::unique_ptr<Drawable> createCopy() const override { return std::make_unique<IconTag> (ico); }
+        Rectangle<float> getDrawableBounds() const override { return { 0.0f, 0.0f, 16.0f, 16.0f }; }
+        Path getOutlineAsPath() const override { return {}; }
+    };
+    inline std::unique_ptr<Drawable> icon (int ico) { return std::make_unique<IconTag> (ico); }
+    inline void addItem (PopupMenu& m, int id, const String& text, int ico, bool enabled = true, bool ticked = false)
+    {
+        PopupMenu::Item it (text);
+        it.itemID = id; it.isEnabled = enabled; it.isTicked = ticked; it.image = icon (ico);
+        m.addItem (std::move (it));
+    }
+    inline void addSubMenu (PopupMenu& m, const String& text, PopupMenu sub, int ico, bool enabled = true)
+    {
+        m.addSubMenu (text, std::move (sub), enabled, icon (ico));
     }
 
     // petites icones sur une grille de 16
@@ -54,6 +87,7 @@ namespace NineHandsMenu
         bool fillDots = false;
         switch (ico)
         {
+            case icoDot:      g.setColour (c); g.fillEllipse (Rectangle<float> (2.6f * k, 2.6f * k).withCentre (P (8, 8))); return;
             case icoSave:     p.startNewSubPath (P (2.5f, 2.5f)); p.lineTo (P (11, 2.5f)); p.lineTo (P (13.5f, 5)); p.lineTo (P (13.5f, 13.5f)); p.lineTo (P (2.5f, 13.5f)); p.closeSubPath();
                               p.startNewSubPath (P (5, 2.5f)); p.lineTo (P (5, 6)); p.lineTo (P (10, 6)); p.lineTo (P (10, 2.5f)); break;
             case icoLoad:     line (8, 2, 8, 10); line (4.5f, 6.5f, 8, 10); line (11.5f, 6.5f, 8, 10); line (3, 13.5f, 13, 13.5f); break;
@@ -94,6 +128,7 @@ namespace NineHandsMenu
     struct MenuLnf : public LookAndFeel_V4
     {
         Fonts f;
+        float textScale = 1.0f;                               // texte plus petit pour certains menus (catalogue de FM-9)
         MenuLnf()
         {
             setColour (PopupMenu::backgroundColourId, Colours::transparentBlack);       // fenetre transparente : coins arrondis
@@ -102,7 +137,7 @@ namespace NineHandsMenu
             setColour (PopupMenu::highlightedBackgroundColourId, kHover);
             setColour (PopupMenu::highlightedTextColourId, Colours::white);
         }
-        Font getPopupMenuFont() override { return fnt (f.med, 15.0f); }
+        Font getPopupMenuFont() override { return fnt (f.med, 15.0f * textScale); }
         int getPopupMenuBorderSize() override { return 7; }
         void drawPopupMenuBackground (Graphics& g, int w, int h) override
         {
@@ -115,19 +150,19 @@ namespace NineHandsMenu
         void getIdealPopupMenuItemSize (const String& text, bool isSeparator, int standardHeight, int& w, int& h) override
         {
             if (isSeparator) { w = 50; h = 11; return; }
-            h = standardHeight > 0 ? standardHeight : 32;
+            h = standardHeight > 0 ? standardHeight : juce::roundToInt (32.0f * (0.4f + 0.6f * textScale));
             w = (int) std::ceil (GlyphArrangement::getStringWidth (getPopupMenuFont(), text)) + 34 + 40;
         }
         void drawPopupMenuSectionHeader (Graphics& g, const Rectangle<int>& area, const String& name) override
         {
-            g.setFont (fnt (f.bold, 11.5f).withExtraKerningFactor (0.14f));
+            g.setFont (fnt (f.bold, 11.5f * textScale).withExtraKerningFactor (0.14f));
             g.setColour (kDim);
             g.drawFittedText (name.toUpperCase(), area.withTrimmedLeft (14).withTrimmedRight (10).withTrimmedTop (6), Justification::centredLeft, 1);
         }
         void drawPopupMenuItem (Graphics& g, const Rectangle<int>& area, bool isSeparator, bool isActive, bool isHighlighted, bool isTicked,
                                 bool hasSubMenu, const String& text, const String& shortcut, const Drawable* icon, const Colour* textColour) override
         {
-            ignoreUnused (shortcut, icon);
+            ignoreUnused (shortcut);
             const auto a = area.toFloat();
             if (isSeparator)
             {
@@ -143,7 +178,11 @@ namespace NineHandsMenu
             }
             const auto ib = Rectangle<float> (15.0f, 15.0f).withCentre ({ a.getX() + 22.0f, a.getCentreY() });
             if (isTicked) drawCheck (g, ib.expanded (1.0f), kAccent, 2.0f);
-            else drawIco (g, iconFor (text), ib, ! isActive ? kFaint : hi ? kAccent : kDim);
+            else
+            {
+                const auto* tag = dynamic_cast<const IconTag*> (icon);
+                drawIco (g, tag != nullptr ? tag->ico : iconFor (text), ib, ! isActive ? kFaint : hi ? kAccent : kDim);
+            }
             auto tr = a.withTrimmedLeft (38.0f).withTrimmedRight (hasSubMenu ? 30.0f : 14.0f);
             g.setFont (getPopupMenuFont());
             g.setColour (textColour != nullptr ? *textColour : ! isActive ? kDim.withAlpha (0.55f) : hi ? Colours::white : kText);

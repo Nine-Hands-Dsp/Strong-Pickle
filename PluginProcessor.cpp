@@ -47,7 +47,7 @@ const PickleAudioProcessor::LearnDef& PickleAudioProcessor::learnDef (int i)
         { "filter",   "Filter",     ccFilter,   learnContinuous },
         { "crunch",   "Crunch",     ccCrunch,   learnToggle },      // >= 64 : haut
         { "scoop",    "Scoop",      ccScoop,    learnToggle },      // >= 64 : haut
-        { "active",   "Footswitch", ccBypassFs, learnFootswitch },
+        { "active",   "Bypass", ccBypassFs, learnFootswitch },
         { "octave",   "Octave",     ccOctave,   learnToggle },      // 0-42 Off, 43-84 Fat, 85-127 Bright
     };
     return defs[jlimit (0, numLearn - 1, i)];
@@ -156,7 +156,7 @@ float PickleAudioProcessor::mapCC (int k, float raw01)
 
 void PickleAudioProcessor::handleMidi (MidiBuffer& midi)
 {
-    const bool latching = rawAt (rMidiFsMode) < 0.5f;
+    const bool latching = true;                     // footswitchs MIDI : 127 = on / 0 = off (menu final)
 
     for (const auto meta : midi)
     {
@@ -240,12 +240,6 @@ void PickleAudioProcessor::handleMidi (MidiBuffer& midi)
             else known = false;
 
             if (known) { lastMidiCC = cc; lastMidiValue = v; ++midiCounter; }
-        }
-        else if (m.isProgramChange())
-        {
-            const int pc = m.getProgramChangeNumber();
-            if (pc < getNumFactoryPresets()) { pendingPreset = pc; triggerAsyncUpdate(); }
-            lastMidiProgram = pc; lastMidiCC = -2; ++midiCounter;
         }
     }
     midi.clear();

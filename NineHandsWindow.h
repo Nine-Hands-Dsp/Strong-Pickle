@@ -3,13 +3,14 @@
 #include "WigaWindowSize.h"
 #include "NineHandsGlow.h"
 #include "WindowMinSize.h"
+#include "NineHandsMenu.h"
 
 //==============================================================================
 // NINE HANDS | DSP : tronc commun des menus clic droit et de la taille de fenetre (fichier commun, nov. 2026).
 //
 // Taille de fenetre :
 //  - trois tailles au menu (60 / 75 / 100 % sur les pedales), la taille par defaut des nouvelles fenetres est
-//    choisie dans « Default size (new windows) » (settings.xml, commun a toutes les instances du plugin) ;
+//    choisie dans « Default size » (settings.xml, commun a toutes les instances du plugin) ;
 //  - chaque instance garde la taille choisie dans son menu (indice 0..n-1, enregistre dans l'etat du projet) ;
 //    -1 = suit la taille par defaut. Choisir une taille par defaut remet l'instance a -1 (elle ne se fige pas).
 //    Les tailles obtenues en tirant le coin ne sont pas enregistrees.
@@ -42,7 +43,7 @@ namespace NineHandsWindow
             defSizes.addItem (idDefault + i, names[i], true, i == def);
         }
         sizes.addSeparator();
-        sizes.addSubMenu ("Default size (new windows)", defSizes);
+        sizes.addSubMenu ("Default size", defSizes);
         return sizes;
     }
 
@@ -67,7 +68,7 @@ namespace NineHandsWindow
         for (int i = 0; i < NineHandsGlow::numSteps; ++i)
         {
             const int v = NineHandsGlow::steps[i];
-            g.addItem (idGlow + i, "Glow " + String (v) + " %" + (v == 100 ? "  (default)" : ""), true, glowPc == v);
+            NineHandsMenu::addItem (g, idGlow + i, String (v) + " %" + (v == 100 ? "  (default)" : ""), NineHandsMenu::icoGlow, true, glowPc == v);
         }
         return g;
     }
