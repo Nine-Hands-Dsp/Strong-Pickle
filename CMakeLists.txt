@@ -39,7 +39,7 @@ juce_add_plugin(StrongPickle
   FORMATS VST3
   VST3_CATEGORIES Fx Distortion
   PRODUCT_NAME "Strong Pickle"
-  VERSION 1.6.0
+  VERSION ${PROJECT_VERSION}
   DESCRIPTION "Jumbo fuzz (Swollen Pickle MkIII style) - single pedal format"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE
